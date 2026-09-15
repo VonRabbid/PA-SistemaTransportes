@@ -1,0 +1,8 @@
+# Compilación básica
+bin/
+obj/
+
+# Archivos de usuario local de Visual Studio
+.vs/
+*.user
+*.suo
