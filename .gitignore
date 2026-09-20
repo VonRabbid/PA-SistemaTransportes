@@ -6,3 +6,14 @@ obj/
 .vs/
 *.user
 *.suo
+
+# Paquetes NuGet y dependencias
+*.nuget.props
+*.nuget.targets
+project.lock.json
+project.fragment.lock.json
+artifacts/
+
+# Archivos temporales y cachés
+TestResults/
+*.cache

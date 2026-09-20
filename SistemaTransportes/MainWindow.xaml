@@ -61,6 +61,7 @@
 
                 <!-- Botón Principal -->
                 <Button x:Name="btnIngresar"
+                        Click="BtnIngresar_Click"
                         Style="{StaticResource PrimaryButtonStyle}"
                         Height="44" Margin="0,0,0,24">
                     <TextBlock Text="Ingresar al Sistema" VerticalAlignment="Center" />
