@@ -108,6 +108,11 @@ namespace SistemaTransportes
                                 "Acceso Autorizado", 
                                 MessageBoxButton.OK, 
                                 MessageBoxImage.Information);
+
+                // 7. Navegación a la ventana de venta de boletos
+                var ventanaVenta = new VentaBoletosWindow();
+                ventanaVenta.Show();
+                this.Close();
             }
             catch (SqlException ex)
             {

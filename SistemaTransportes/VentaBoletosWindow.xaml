@@ -1,0 +1,483 @@
+<Window x:Class="SistemaTransportes.VentaBoletosWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:SistemaTransportes"
+        mc:Ignorable="d"
+        Title="Sistema de Transportes - Punto de Venta Integrada"
+        Height="820" Width="1300"
+        WindowStartupLocation="CenterScreen"
+        Background="{StaticResource BgGeneralBrush}">
+
+    <Window.Resources>
+        <!-- Estilo para los botones de asiento -->
+        <Style x:Key="BotonAsientoItemStyle" TargetType="Button">
+            <Setter Property="Margin" Value="2" />
+            <Setter Property="Height" Value="44" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="borderAsiento" Background="{TemplateBinding Background}"
+                                CornerRadius="6" Padding="4,2">
+                            <Grid HorizontalAlignment="Center" VerticalAlignment="Center">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <Image Grid.Column="0"
+                                       Source="pack://application:,,,/SistemaTransportes;component/imagenes/asiento_white.png"
+                                       Width="18" Height="18" Stretch="Uniform"
+                                       Margin="0,0,4,0" VerticalAlignment="Center" />
+                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                    <ContentPresenter HorizontalAlignment="Left" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="borderAsiento" Property="Opacity" Value="0.85" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <Grid Margin="18,14,18,14">
+        <Grid.RowDefinitions>
+            <!-- 0. Cabecera Superior -->
+            <RowDefinition Height="Auto" />
+            <!-- 1. Cuerpo Principal: 3 Paneles -->
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!-- =================================================================== -->
+        <!-- 0. CABECERA SUPERIOR: Logo, Sesión Operador y Widget de Caja Activa -->
+        <!-- =================================================================== -->
+        <Border Grid.Row="0" Style="{StaticResource CardBorderStyle}" Padding="20,12" Margin="0,0,0,14">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <!-- Título y Datos de Sesión -->
+                <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,4" VerticalAlignment="Center">
+                        <Image Source="pack://application:,,,/SistemaTransportes;component/imagenes/bus.png"
+                               Width="28" Height="28" Margin="0,0,10,0" Stretch="Uniform" VerticalAlignment="Center" />
+                        <TextBlock Text="SISTEMA DE TRANSPORTES"
+                                   FontFamily="Segoe UI" FontWeight="Bold" FontSize="19"
+                                   Foreground="{StaticResource PrimaryBrush}" VerticalAlignment="Center" />
+                        <Border Background="#E2E8F0" CornerRadius="4" Padding="8,3" Margin="12,0,0,0" VerticalAlignment="Center">
+                            <TextBlock Text="PUNTO DE VENTA INTEGRADA"
+                                       FontFamily="Segoe UI" FontWeight="SemiBold" FontSize="11"
+                                       Foreground="{StaticResource PrimaryAccentBrush}" />
+                        </Border>
+                    </StackPanel>
+
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="👤 Operador: " FontFamily="Segoe UI" FontSize="12.5" Foreground="{StaticResource TextSecondaryBrush}" />
+                        <TextBlock x:Name="lblOperador" Text="OpControl" FontFamily="Segoe UI" FontWeight="SemiBold" FontSize="12.5" Foreground="{StaticResource TextPrimaryBrush}" />
+                        <TextBlock Text="  |  Rol: " FontFamily="Segoe UI" FontSize="12.5" Foreground="{StaticResource TextSecondaryBrush}" Margin="8,0,0,0" />
+                        <TextBlock x:Name="lblRol" Text="Operador" FontFamily="Segoe UI" FontWeight="SemiBold" FontSize="12.5" Foreground="{StaticResource TextPrimaryBrush}" />
+                        <TextBlock Text="  |  Turno activo: #" FontFamily="Segoe UI" FontSize="12.5" Foreground="{StaticResource TextSecondaryBrush}" Margin="8,0,0,0" />
+                        <TextBlock x:Name="lblTurnoId" Text="1" FontFamily="Segoe UI" FontWeight="SemiBold" FontSize="12.5" Foreground="{StaticResource TextPrimaryBrush}" />
+                    </StackPanel>
+                </StackPanel>
+
+                <!-- Widget Caja del Turno y Botón Salir -->
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Border Background="{StaticResource CajaBgBrush}"
+                            BorderBrush="#A3E4D7" BorderThickness="1.5"
+                            CornerRadius="8" Padding="18,6" Margin="0,0,14,0">
+                        <StackPanel HorizontalAlignment="Right">
+                            <TextBlock Text="CAJA DEL TURNO (ACTIVA)"
+                                       FontFamily="Segoe UI" FontWeight="Bold" FontSize="10.5"
+                                       Foreground="#117A65" HorizontalAlignment="Right" />
+                            <TextBlock x:Name="lblSaldoCaja" Text="S/. 500.00"
+                                       FontFamily="Segoe UI" FontWeight="Bold" FontSize="20"
+                                       Foreground="{StaticResource CajaSuccessBrush}"
+                                       HorizontalAlignment="Right" />
+                        </StackPanel>
+                    </Border>
+
+                    <Button x:Name="btnCerrarSesion" Click="BtnCerrarSesion_Click"
+                            Background="#FFF5F5" Foreground="#C53030"
+                            BorderBrush="#FEB2B2" BorderThickness="1"
+                            FontFamily="Segoe UI" FontWeight="SemiBold" FontSize="12"
+                            Padding="12,8" Cursor="Hand" VerticalAlignment="Center">
+                        <Button.Resources>
+                            <Style TargetType="Border">
+                                <Setter Property="CornerRadius" Value="6" />
+                            </Style>
+                        </Button.Resources>
+                        <TextBlock Text="Cerrar Sesión" />
+                    </Button>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- =================================================================== -->
+        <!-- 1. CUERPO PRINCIPAL (3 PANELES)                                    -->
+        <!-- =================================================================== -->
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <!-- Panel Izquierdo: Croquis Interactivo del Bus (410px) -->
+                <ColumnDefinition Width="410" />
+                <!-- Panel Central: Selección de Rutas y Horarios (*) -->
+                <ColumnDefinition Width="*" />
+                <!-- Panel Derecho: Resumen, Pasajero y Liquidación (390px) -->
+                <ColumnDefinition Width="390" />
+            </Grid.ColumnDefinitions>
+
+            <!-- =============================================================== -->
+            <!-- PANEL IZQUIERDO: CROQUIS DEL BUS                                -->
+            <!-- =============================================================== -->
+            <Border Grid.Column="0" Style="{StaticResource CardBorderStyle}" Padding="14" Margin="0,0,12,0">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <!-- Título -->
+                        <RowDefinition Height="Auto" />
+                        <!-- Selector Piso 1 / Piso 2 -->
+                        <RowDefinition Height="Auto" />
+                        <!-- Leyenda de Estados -->
+                        <RowDefinition Height="Auto" />
+                        <!-- Croquis con Pasillo Central -->
+                        <RowDefinition Height="*" />
+                        <!-- Asiento Seleccionado Notificador -->
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <!-- Título -->
+                    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,10" VerticalAlignment="Center">
+                        <Image Source="pack://application:,,,/SistemaTransportes;component/imagenes/asiento.png"
+                               Width="18" Height="18" Margin="0,0,6,0" Stretch="Uniform" VerticalAlignment="Center" />
+                        <TextBlock Text="Distribución del Bus"
+                                   FontFamily="Segoe UI" FontWeight="Bold" FontSize="14.5"
+                                   Foreground="{StaticResource PrimaryBrush}" VerticalAlignment="Center" />
+                        <TextBlock x:Name="lblBusInfo" Text=" (Mercedes-Benz 120)"
+                                   FontFamily="Segoe UI" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" />
+                    </StackPanel>
+
+                    <!-- Selector de Pisos (Botones Piso 1 y Piso 2) -->
+                    <Border Grid.Row="1" Background="#F1F5F9" CornerRadius="6" Padding="3" Margin="0,0,0,10">
+                        <UniformGrid Columns="2">
+                            <Button x:Name="btnPiso1" Content="Piso 1" Click="BtnPiso1_Click"
+                                    Background="{StaticResource PrimaryAccentBrush}" Foreground="White"
+                                    FontFamily="Segoe UI" FontWeight="Bold" FontSize="12"
+                                    Padding="8,5" BorderThickness="0" Cursor="Hand">
+                                <Button.Resources>
+                                    <Style TargetType="Border">
+                                        <Setter Property="CornerRadius" Value="4" />
+                                    </Style>
+                                </Button.Resources>
+                            </Button>
+                            <Button x:Name="btnPiso2" Content="Piso 2" Click="BtnPiso2_Click"
+                                    Background="#FFFFFF" Foreground="{StaticResource PrimaryBrush}"
+                                    FontFamily="Segoe UI" FontWeight="SemiBold" FontSize="12"
+                                    Padding="8,5" BorderThickness="0" Cursor="Hand">
+                                <Button.Resources>
+                                    <Style TargetType="Border">
+                                        <Setter Property="CornerRadius" Value="4" />
+                                    </Style>
+                                </Button.Resources>
+                            </Button>
+                        </UniformGrid>
+                    </Border>
+
+                    <!-- Leyenda de Estados de Asientos -->
+                    <Border Grid.Row="2" Background="#FAFAFA" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1"
+                            CornerRadius="6" Padding="8,6" Margin="0,0,0,10">
+                        <UniformGrid Columns="3">
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                <Border Width="12" Height="12" CornerRadius="3" Background="{StaticResource AsientoLibreBrush}" Margin="0,0,5,0" />
+                                <TextBlock Text="Libre" FontFamily="Segoe UI" FontSize="11" Foreground="{StaticResource TextPrimaryBrush}" />
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                <Border Width="12" Height="12" CornerRadius="3" Background="{StaticResource AsientoOcupadoBrush}" Margin="0,0,5,0" />
+                                <TextBlock Text="Ocupado" FontFamily="Segoe UI" FontSize="11" Foreground="{StaticResource TextPrimaryBrush}" />
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                <Border Width="12" Height="12" CornerRadius="3" Background="{StaticResource AsientoSeleccionadoBrush}"
+                                        BorderBrush="{StaticResource ContrastOrangeBrush}" BorderThickness="1.5" Margin="0,0,5,0" />
+                                <TextBlock Text="Seleccionado" FontFamily="Segoe UI" FontSize="11" Foreground="{StaticResource TextPrimaryBrush}" />
+                            </StackPanel>
+                        </UniformGrid>
+                    </Border>
+
+                    <!-- Contenedor del Croquis: 4 asientos por fila con pasillo central -->
+                    <Border Grid.Row="3" Background="#F8FAFC" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1"
+                            CornerRadius="8" Padding="10">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <!-- Cabina Conductor -->
+                                <RowDefinition Height="Auto" />
+                                <!-- Encabezado Columnas -->
+                                <RowDefinition Height="Auto" />
+                                <!-- Lista de Filas -->
+                                <RowDefinition Height="*" />
+                                <!-- Sector Posterior -->
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+
+                            <!-- Cabina Conductor -->
+                            <Border Grid.Row="0" Background="#E2E8F0" CornerRadius="6" Padding="8,4" Margin="0,0,0,8">
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                    <Image Source="pack://application:,,,/SistemaTransportes;component/imagenes/bus.png"
+                                           Width="14" Height="14" Margin="0,0,6,0" Stretch="Uniform" VerticalAlignment="Center" />
+                                    <TextBlock Text="FRENTE / CABINA CONDUCTOR"
+                                               FontFamily="Segoe UI" FontWeight="SemiBold" FontSize="11"
+                                               Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Encabezado de Columnas (Ventana | Pasillo | Pasillo Central | Pasillo | Ventana) -->
+                            <Grid Grid.Row="1" Margin="0,0,0,6">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="38" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="Vent." FontFamily="Segoe UI" FontSize="10" Foreground="{StaticResource TextSecondaryBrush}" HorizontalAlignment="Center" />
+                                <TextBlock Grid.Column="1" Text="Pas." FontFamily="Segoe UI" FontSize="10" Foreground="{StaticResource TextSecondaryBrush}" HorizontalAlignment="Center" />
+                                <TextBlock Grid.Column="2" Text="🚶" FontFamily="Segoe UI" FontSize="10" Foreground="{StaticResource PrimaryAccentBrush}" HorizontalAlignment="Center" />
+                                <TextBlock Grid.Column="3" Text="Pas." FontFamily="Segoe UI" FontSize="10" Foreground="{StaticResource TextSecondaryBrush}" HorizontalAlignment="Center" />
+                                <TextBlock Grid.Column="4" Text="Vent." FontFamily="Segoe UI" FontSize="10" Foreground="{StaticResource TextSecondaryBrush}" HorizontalAlignment="Center" />
+                            </Grid>
+
+                            <!-- Filas de Asientos Dinámicas -->
+                            <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                                <StackPanel x:Name="panelFilasAsientos" />
+                            </ScrollViewer>
+
+                            <!-- Sector Posterior -->
+                            <Border Grid.Row="3" Background="#E2E8F0" CornerRadius="6" Padding="4" Margin="0,8,0,0">
+                                <TextBlock Text="SECTOR POSTERIOR / MOTOR"
+                                           FontFamily="Segoe UI" FontSize="10" FontWeight="SemiBold"
+                                           Foreground="{StaticResource TextSecondaryBrush}" HorizontalAlignment="Center" />
+                            </Border>
+                        </Grid>
+                    </Border>
+
+                    <!-- Notificador Asiento Seleccionado -->
+                    <Border Grid.Row="4" Background="#EBF8FF" BorderBrush="#BEE3F8" BorderThickness="1"
+                            CornerRadius="6" Padding="8,6" Margin="0,8,0,0">
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                            <TextBlock Text="Asiento actual: " FontFamily="Segoe UI" FontSize="12" Foreground="{StaticResource PrimaryBrush}" />
+                            <TextBlock x:Name="lblAsientoSeleccionadoTexto" Text="Ninguno seleccionado"
+                                       FontFamily="Segoe UI" FontWeight="Bold" FontSize="12" Foreground="{StaticResource PrimaryAccentBrush}" />
+                        </StackPanel>
+                    </Border>
+                </Grid>
+            </Border>
+
+            <!-- =============================================================== -->
+            <!-- PANEL CENTRAL: SELECCIÓN DE RUTAS Y HORARIOS DISPONIBLES       -->
+            <!-- =============================================================== -->
+            <Border Grid.Column="1" Style="{StaticResource CardBorderStyle}" Padding="16" Margin="0,0,12,0">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <!-- Selector de Rutas -->
+                        <RowDefinition Height="Auto" />
+                        <!-- Título Horarios -->
+                        <RowDefinition Height="Auto" />
+                        <!-- Lista de Horarios -->
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+
+                    <!-- Selector de Rutas (Origen, Destino, Fecha) -->
+                    <Border Grid.Row="0" Background="#F8FAFC" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1"
+                            CornerRadius="8" Padding="14,12" Margin="0,0,0,14">
+                        <StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                                <TextBlock Text="📍 Selección de Ruta y Fecha" FontFamily="Segoe UI" FontWeight="Bold" FontSize="14"
+                                           Foreground="{StaticResource PrimaryBrush}" />
+                            </StackPanel>
+
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="130" />
+                                </Grid.ColumnDefinitions>
+
+                                <!-- Origen -->
+                                <StackPanel Grid.Column="0" Margin="0,0,6,0">
+                                    <TextBlock Text="Origen:" FontFamily="Segoe UI" FontWeight="SemiBold" FontSize="11.5"
+                                               Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,4" />
+                                    <ComboBox x:Name="cmbOrigen" SelectionChanged="CmbRuta_SelectionChanged"
+                                              FontFamily="Segoe UI" FontSize="12.5" Padding="8,6" />
+                                </StackPanel>
+
+                                <!-- Botón Intercambio ⇄ -->
+                                <Button Grid.Column="1" x:Name="btnIntercambiar" Click="BtnIntercambiar_Click"
+                                        Content="⇄" FontSize="15" FontWeight="Bold" Foreground="{StaticResource PrimaryAccentBrush}"
+                                        Background="#EDF2F7" BorderThickness="0" Width="32" Height="32"
+                                        Cursor="Hand" Margin="2,18,2,0" VerticalAlignment="Center">
+                                    <Button.Resources>
+                                        <Style TargetType="Border">
+                                            <Setter Property="CornerRadius" Value="4" />
+                                        </Style>
+                                    </Button.Resources>
+                                </Button>
+
+                                <!-- Destino -->
+                                <StackPanel Grid.Column="2" Margin="6,0,6,0">
+                                    <TextBlock Text="Destino:" FontFamily="Segoe UI" FontWeight="SemiBold" FontSize="11.5"
+                                               Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,4" />
+                                    <ComboBox x:Name="cmbDestino" SelectionChanged="CmbRuta_SelectionChanged"
+                                              FontFamily="Segoe UI" FontSize="12.5" Padding="8,6" />
+                                </StackPanel>
+
+                                <!-- Fecha -->
+                                <StackPanel Grid.Column="3">
+                                    <TextBlock Text="Fecha:" FontFamily="Segoe UI" FontWeight="SemiBold" FontSize="11.5"
+                                               Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,4" />
+                                    <DatePicker x:Name="dpFechaViaje" FontFamily="Segoe UI" FontSize="12" />
+                                </StackPanel>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Título Horarios -->
+                    <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,10">
+                        <TextBlock Text="🕒 Horarios Oficiales y Salidas Disponibles"
+                                   FontFamily="Segoe UI" FontWeight="Bold" FontSize="14"
+                                   Foreground="{StaticResource PrimaryBrush}" />
+                        <TextBlock x:Name="lblRutaSeleccionada" Text=" (Lima ➔ Huancayo)"
+                                   FontFamily="Segoe UI" FontWeight="SemiBold" FontSize="13"
+                                   Foreground="{StaticResource TealBrush}" Margin="6,0,0,0" />
+                    </StackPanel>
+
+                    <!-- Lista de Horarios Disponibles -->
+                    <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
+                        <StackPanel x:Name="panelViajesDisponibles" />
+                    </ScrollViewer>
+                </Grid>
+            </Border>
+
+            <!-- =============================================================== -->
+            <!-- PANEL DERECHO: RESUMEN, DATOS PASAJERO Y EMISIÓN               -->
+            <!-- =============================================================== -->
+            <Border Grid.Column="2" Style="{StaticResource CardBorderStyle}" Padding="16">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <!-- Resumen y Datos -->
+                        <RowDefinition Height="*" />
+                        <!-- Footer con Total y Botón Emitir -->
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto" Margin="0,0,0,10">
+                        <StackPanel>
+                            <!-- Título Resumen -->
+                            <TextBlock Text="📋 Resumen de Compra" FontFamily="Segoe UI" FontWeight="Bold" FontSize="14"
+                                       Foreground="{StaticResource PrimaryBrush}" Margin="0,0,0,10" />
+
+                            <!-- Tarjeta de Viaje Seleccionado -->
+                            <Border Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1"
+                                    CornerRadius="6" Padding="12,10" Margin="0,0,0,14">
+                                <StackPanel>
+                                    <TextBlock x:Name="lblResumenRuta" Text="Lima ➔ Huancayo"
+                                               FontFamily="Segoe UI" FontWeight="Bold" FontSize="13" Foreground="{StaticResource PrimaryBrush}" />
+                                    <TextBlock x:Name="lblResumenSalida" Text="Salida: Hoy 08:00 AM | Servicio VIP"
+                                               FontFamily="Segoe UI" FontSize="11.5" Foreground="{StaticResource TealBrush}" Margin="0,2,0,0" />
+                                    <Separator Background="#E2E8F0" Margin="0,6,0,6" />
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="Asiento asignado:" FontFamily="Segoe UI" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" />
+                                        <TextBlock Grid.Column="1" x:Name="lblResumenAsiento" Text="N° --"
+                                                   FontFamily="Segoe UI" FontWeight="Bold" FontSize="13" Foreground="{StaticResource PrimaryAccentBrush}" />
+                                    </Grid>
+                                    <Grid Margin="0,4,0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="Tarifa pasaje:" FontFamily="Segoe UI" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" />
+                                        <TextBlock Grid.Column="1" x:Name="lblResumenTarifa" Text="S/. 65.00"
+                                                   FontFamily="Segoe UI" FontWeight="Bold" FontSize="13" Foreground="{StaticResource PrimaryBrush}" />
+                                    </Grid>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Formulario de Datos del Pasajero -->
+                            <TextBlock Text="👤 Datos del Pasajero" FontFamily="Segoe UI" FontWeight="Bold" FontSize="13"
+                                       Foreground="{StaticResource PrimaryBrush}" Margin="0,0,0,8" />
+
+                            <TextBlock Text="N° Documento (DNI):" FontFamily="Segoe UI" FontWeight="SemiBold" FontSize="11.5"
+                                       Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,4" />
+                            <TextBox x:Name="txtDni" Style="{StaticResource ModernTextBoxStyle}" MaxLength="8" Margin="0,0,0,10" />
+
+                            <TextBlock Text="Nombres y Apellidos:" FontFamily="Segoe UI" FontWeight="SemiBold" FontSize="11.5"
+                                       Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,4" />
+                            <TextBox x:Name="txtNombres" Style="{StaticResource ModernTextBoxStyle}" Margin="0,0,0,14" />
+
+                            <!-- Método de Pago -->
+                            <TextBlock Text="💳 Método de Pago" FontFamily="Segoe UI" FontWeight="Bold" FontSize="13"
+                                       Foreground="{StaticResource PrimaryBrush}" Margin="0,0,0,8" />
+
+                            <UniformGrid Columns="3" Margin="0,0,0,10">
+                                <RadioButton x:Name="rbEfectivo" Content="💵 Efectivo" IsChecked="True"
+                                             Checked="RbMetodoPago_Checked" FontFamily="Segoe UI" FontWeight="SemiBold" FontSize="11.5" />
+                                <RadioButton x:Name="rbYape" Content="📱 Yape/Plin"
+                                             Checked="RbMetodoPago_Checked" FontFamily="Segoe UI" FontWeight="SemiBold" FontSize="11.5" />
+                                <RadioButton x:Name="rbTarjeta" Content="💳 Tarjeta"
+                                             Checked="RbMetodoPago_Checked" FontFamily="Segoe UI" FontWeight="SemiBold" FontSize="11.5" />
+                            </UniformGrid>
+
+                            <!-- Campo adicional Efectivo -->
+                            <StackPanel x:Name="panelEfectivo" Margin="0,0,0,10">
+                                <TextBlock Text="Monto recibido en efectivo (S/.):" FontFamily="Segoe UI" FontSize="11.5"
+                                           Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,4" />
+                                <TextBox x:Name="txtMontoRecibido" Text="100.00" TextChanged="TxtMontoRecibido_TextChanged"
+                                         Style="{StaticResource ModernTextBoxStyle}" />
+                                <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                                    <TextBlock Text="Vuelto: " FontFamily="Segoe UI" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" />
+                                    <TextBlock x:Name="lblVuelto" Text="S/. 35.00" FontFamily="Segoe UI" FontWeight="Bold" FontSize="13" Foreground="{StaticResource CajaSuccessBrush}" />
+                                </StackPanel>
+                            </StackPanel>
+                        </StackPanel>
+                    </ScrollViewer>
+
+                    <!-- Footer: Total a Pagar y Botón Emitir Boleto -->
+                    <Border Grid.Row="1" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="0,1,0,0" Padding="0,12,0,0">
+                        <StackPanel>
+                            <Grid Margin="0,0,0,12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="TOTAL A PAGAR:" FontFamily="Segoe UI" FontWeight="Bold" FontSize="13"
+                                           Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" />
+                                <TextBlock Grid.Column="1" x:Name="lblTotalPagar" Text="S/. 65.00"
+                                           FontFamily="Segoe UI" FontWeight="Bold" FontSize="24"
+                                           Foreground="{StaticResource ContrastOrangeBrush}" VerticalAlignment="Center" />
+                            </Grid>
+
+                            <!-- Botón Naranja Destacado "Emitir Boleto" -->
+                            <Button x:Name="btnEmitirBoleto" Click="BtnEmitirBoleto_Click"
+                                    Style="{StaticResource ContrastButtonStyle}"
+                                    Height="48" HorizontalAlignment="Stretch">
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                    <TextBlock Text="🎫 Emitir Boleto" FontWeight="Bold" FontSize="14.5" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+            </Border>
+        </Grid>
+    </Grid>
+</Window>
