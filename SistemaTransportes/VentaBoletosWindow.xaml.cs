@@ -1,540 +1,745 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Globalization;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Media;
+using System.Windows.Input;
+using SistemaTransportes.Common;
 
 namespace SistemaTransportes
 {
     public partial class VentaBoletosWindow : Window
     {
-        private class AsientoModel
-        {
-            public int NroAsiento { get; set; }
-            public int Piso { get; set; }
-            public string Estado { get; set; } = "Libre"; // Libre, Ocupado, Seleccionado
-        }
-
-        private class ViajeModel
-        {
-            public string Hora { get; set; } = "";
-            public string Bus { get; set; } = "";
-            public string Servicio { get; set; } = "";
-            public decimal Tarifa { get; set; }
-            public string SalidaTexto { get; set; } = "";
-        }
-
-        private readonly List<AsientoModel> _asientos = new();
-        private readonly List<ViajeModel> _viajes = new();
-        private int _pisoActual = 1;
-        private int? _asientoSeleccionado = null;
-        private ViajeModel _viajeSeleccionado = null!;
+        private static readonly Regex SoloNumerosRegex = new("^[0-9]+$", RegexOptions.Compiled);
 
         public VentaBoletosWindow()
         {
             InitializeComponent();
-            InicializarRutas();
-            InicializarViajes();
-            InicializarAsientos();
-            RenderizarPiso(_pisoActual);
-            dpFechaViaje.SelectedDate = DateTime.Today;
+            DataContext = new VentaIntegradaViewModel(this);
         }
 
-        private void InicializarRutas()
+        private void NumeroOperacion_PreviewTextInput(object sender, TextCompositionEventArgs e)
         {
-            string[] origenes = { "Lima", "Huancayo", "Arequipa", "Trujillo", "Cusco" };
-            string[] destinos = { "Huancayo", "Lima", "Arequipa", "Ayacucho", "Chiclayo" };
-
-            cmbOrigen.ItemsSource = origenes;
-            cmbOrigen.SelectedIndex = 0; // Lima
-
-            cmbDestino.ItemsSource = destinos;
-            cmbDestino.SelectedIndex = 0; // Huancayo
+            e.Handled = !SoloNumerosRegex.IsMatch(e.Text);
         }
 
-        private void InicializarViajes()
+        private void NumeroOperacion_Pasting(object sender, DataObjectPastingEventArgs e)
         {
-            _viajes.Clear();
-            _viajes.Add(new ViajeModel
+            if (e.DataObject.GetDataPresent(typeof(string)))
             {
-                Hora = "08:00 AM",
-                Bus = "Mercedes-Benz 120 (Placa ABC-123)",
-                Servicio = "VIP (2 Pisos)",
-                Tarifa = 65.00m,
-                SalidaTexto = "Salida: Hoy 08:00 AM | Servicio VIP"
-            });
-            _viajes.Add(new ViajeModel
-            {
-                Hora = "01:30 PM",
-                Bus = "Scania K410 (Placa XYZ-789)",
-                Servicio = "Ejecutivo",
-                Tarifa = 55.00m,
-                SalidaTexto = "Salida: Hoy 01:30 PM | Servicio Ejecutivo"
-            });
-            _viajes.Add(new ViajeModel
-            {
-                Hora = "09:00 PM",
-                Bus = "Volvo B430R (Placa PER-456)",
-                Servicio = "Premium Suite",
-                Tarifa = 80.00m,
-                SalidaTexto = "Salida: Hoy 09:00 PM | Servicio Premium Suite"
-            });
-
-            _viajeSeleccionado = _viajes[0];
-            RenderizarListaViajes();
-            ActualizarResumenViaje();
-        }
-
-        private void InicializarAsientos()
-        {
-            _asientos.Clear();
-
-            // Piso 1: Asientos 1 al 20 (5 filas de 4)
-            for (int i = 1; i <= 20; i++)
-            {
-                _asientos.Add(new AsientoModel
+                string text = (string)e.DataObject.GetData(typeof(string));
+                if (string.IsNullOrEmpty(text) || !SoloNumerosRegex.IsMatch(text))
                 {
-                    NroAsiento = i,
-                    Piso = 1,
-                    // Ocupamos algunos asientos como ejemplo
-                    Estado = (i == 3 || i == 4 || i == 11 || i == 12) ? "Ocupado" : "Libre"
-                });
-            }
-
-            // Piso 2: Asientos 21 al 48 (7 filas de 4)
-            for (int i = 21; i <= 48; i++)
-            {
-                _asientos.Add(new AsientoModel
-                {
-                    NroAsiento = i,
-                    Piso = 2,
-                    Estado = (i == 23 || i == 24 || i == 35 || i == 36 || i == 42) ? "Ocupado" : "Libre"
-                });
-            }
-        }
-
-        private void RenderizarPiso(int piso)
-        {
-            _pisoActual = piso;
-            panelFilasAsientos.Children.Clear();
-
-            var asientosPiso = _asientos.Where(a => a.Piso == piso).OrderBy(a => a.NroAsiento).ToList();
-
-            // Renderizamos filas de 4 asientos con pasillo central
-            for (int i = 0; i < asientosPiso.Count; i += 4)
-            {
-                var gridFila = new Grid { Margin = new Thickness(0, 3, 0, 3) };
-                gridFila.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); // Ventana Izq
-                gridFila.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); // Pasillo Izq
-                gridFila.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(38, GridUnitType.Pixel) }); // Pasillo
-                gridFila.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); // Pasillo Der
-                gridFila.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); // Ventana Der
-
-                // Asiento 1
-                if (i < asientosPiso.Count)
-                    gridFila.Children.Add(CrearBotonAsiento(asientosPiso[i], 0));
-
-                // Asiento 2
-                if (i + 1 < asientosPiso.Count)
-                    gridFila.Children.Add(CrearBotonAsiento(asientosPiso[i + 1], 1));
-
-                // Pasillo
-                var borderPasillo = new Border
-                {
-                    Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#E2E8F0")),
-                    CornerRadius = new CornerRadius(4),
-                    Margin = new Thickness(3, 2, 3, 2),
-                    Height = 40,
-                    Child = new TextBlock
-                    {
-                        Text = "||",
-                        FontFamily = new FontFamily("Segoe UI"),
-                        FontWeight = FontWeights.Bold,
-                        FontSize = 10,
-                        Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#94A3B8")),
-                        HorizontalAlignment = HorizontalAlignment.Center,
-                        VerticalAlignment = VerticalAlignment.Center
-                    }
-                };
-                Grid.SetColumn(borderPasillo, 2);
-                gridFila.Children.Add(borderPasillo);
-
-                // Asiento 3
-                if (i + 2 < asientosPiso.Count)
-                    gridFila.Children.Add(CrearBotonAsiento(asientosPiso[i + 2], 3));
-
-                // Asiento 4
-                if (i + 3 < asientosPiso.Count)
-                    gridFila.Children.Add(CrearBotonAsiento(asientosPiso[i + 3], 4));
-
-                panelFilasAsientos.Children.Add(gridFila);
-            }
-        }
-
-        private Button CrearBotonAsiento(AsientoModel asiento, int columna)
-        {
-            var btn = new Button
-            {
-                Style = (Style)FindResource("BotonAsientoItemStyle"),
-                Tag = asiento
-            };
-
-            // Contenido con número de asiento y estado
-            var sp = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
-            var txtNum = new TextBlock
-            {
-                Text = $"N° {asiento.NroAsiento:00}",
-                FontFamily = new FontFamily("Segoe UI"),
-                FontWeight = FontWeights.Bold,
-                FontSize = 11,
-                Foreground = Brushes.White
-            };
-            var txtEstado = new TextBlock
-            {
-                Text = asiento.Estado,
-                FontFamily = new FontFamily("Segoe UI"),
-                FontSize = 8.5,
-                Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F8FAFC"))
-            };
-            sp.Children.Add(txtNum);
-            sp.Children.Add(txtEstado);
-            btn.Content = sp;
-
-            // Colores según estado
-            ActualizarColorBotonAsiento(btn, asiento.Estado);
-
-            if (asiento.Estado != "Ocupado")
-            {
-                btn.Click += Asiento_Click;
-            }
-            else
-            {
-                btn.Cursor = System.Windows.Input.Cursors.No;
-            }
-
-            Grid.SetColumn(btn, columna);
-            return btn;
-        }
-
-        private void ActualizarColorBotonAsiento(Button btn, string estado)
-        {
-            if (estado == "Libre")
-            {
-                btn.Background = (Brush)FindResource("AsientoLibreBrush");
-            }
-            else if (estado == "Ocupado")
-            {
-                btn.Background = (Brush)FindResource("AsientoOcupadoBrush");
-            }
-            else if (estado == "Seleccionado")
-            {
-                btn.Background = (Brush)FindResource("AsientoSeleccionadoBrush");
-                btn.BorderBrush = (Brush)FindResource("ContrastOrangeBrush");
-                btn.BorderThickness = new Thickness(2);
-            }
-        }
-
-        private void Asiento_Click(object sender, RoutedEventArgs e)
-        {
-            if (sender is Button btn && btn.Tag is AsientoModel asiento)
-            {
-                if (asiento.Estado == "Ocupado") return;
-
-                // Deseleccionar el anterior
-                foreach (var a in _asientos.Where(x => x.Estado == "Seleccionado"))
-                {
-                    a.Estado = "Libre";
-                }
-
-                if (_asientoSeleccionado == asiento.NroAsiento)
-                {
-                    _asientoSeleccionado = null;
-                    lblAsientoSeleccionadoTexto.Text = "Ninguno seleccionado";
-                    lblResumenAsiento.Text = "N° --";
-                }
-                else
-                {
-                    asiento.Estado = "Seleccionado";
-                    _asientoSeleccionado = asiento.NroAsiento;
-                    lblAsientoSeleccionadoTexto.Text = $"N° {asiento.NroAsiento:00} (Piso {asiento.Piso})";
-                    lblResumenAsiento.Text = $"N° {asiento.NroAsiento:00} (Piso {asiento.Piso})";
-                }
-
-                RenderizarPiso(_pisoActual);
-            }
-        }
-
-        private void BtnPiso1_Click(object sender, RoutedEventArgs e)
-        {
-            btnPiso1.Background = (Brush)FindResource("PrimaryAccentBrush");
-            btnPiso1.Foreground = Brushes.White;
-            btnPiso2.Background = Brushes.White;
-            btnPiso2.Foreground = (Brush)FindResource("PrimaryBrush");
-            RenderizarPiso(1);
-        }
-
-        private void BtnPiso2_Click(object sender, RoutedEventArgs e)
-        {
-            btnPiso2.Background = (Brush)FindResource("PrimaryAccentBrush");
-            btnPiso2.Foreground = Brushes.White;
-            btnPiso1.Background = Brushes.White;
-            btnPiso1.Foreground = (Brush)FindResource("PrimaryBrush");
-            RenderizarPiso(2);
-        }
-
-        private void RenderizarListaViajes()
-        {
-            panelViajesDisponibles.Children.Clear();
-
-            foreach (var viaje in _viajes)
-            {
-                bool esSeleccionado = viaje == _viajeSeleccionado;
-
-                var border = new Border
-                {
-                    Background = esSeleccionado ? new SolidColorBrush((Color)ColorConverter.ConvertFromString("#EBF8FF")) : Brushes.White,
-                    BorderBrush = esSeleccionado ? (Brush)FindResource("PrimaryAccentBrush") : (Brush)FindResource("BorderLightBrush"),
-                    BorderThickness = new Thickness(esSeleccionado ? 2 : 1),
-                    CornerRadius = new CornerRadius(8),
-                    Padding = new Thickness(14, 12, 14, 12),
-                    Margin = new Thickness(0, 0, 0, 10),
-                    Cursor = System.Windows.Input.Cursors.Hand,
-                    Tag = viaje
-                };
-
-                var grid = new Grid();
-                grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(85, GridUnitType.Pixel) }); // Hora
-                grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); // Info Bus & Servicio
-                grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(110, GridUnitType.Pixel) }); // Tarifa y Acción
-
-                // Columna 1: Hora
-                var spHora = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
-                spHora.Children.Add(new TextBlock
-                {
-                    Text = viaje.Hora,
-                    FontFamily = new FontFamily("Segoe UI"),
-                    FontWeight = FontWeights.Bold,
-                    FontSize = 15,
-                    Foreground = (Brush)FindResource("PrimaryBrush")
-                });
-                spHora.Children.Add(new TextBlock
-                {
-                    Text = "Salida",
-                    FontFamily = new FontFamily("Segoe UI"),
-                    FontSize = 11,
-                    Foreground = (Brush)FindResource("TextSecondaryBrush")
-                });
-                Grid.SetColumn(spHora, 0);
-                grid.Children.Add(spHora);
-
-                // Columna 2: Detalles
-                var spDetalle = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(10, 0, 10, 0) };
-                var spServicio = new StackPanel { Orientation = Orientation.Horizontal };
-                spServicio.Children.Add(new Border
-                {
-                    Background = (Brush)FindResource("TealLightBrush"),
-                    CornerRadius = new CornerRadius(4),
-                    Padding = new Thickness(6, 2, 6, 2),
-                    Margin = new Thickness(0, 0, 6, 2),
-                    Child = new TextBlock
-                    {
-                        Text = viaje.Servicio,
-                        FontFamily = new FontFamily("Segoe UI"),
-                        FontWeight = FontWeights.Bold,
-                        FontSize = 10.5,
-                        Foreground = (Brush)FindResource("TealBrush")
-                    }
-                });
-                spDetalle.Children.Add(spServicio);
-                spDetalle.Children.Add(new TextBlock
-                {
-                    Text = viaje.Bus,
-                    FontFamily = new FontFamily("Segoe UI"),
-                    FontSize = 12,
-                    Foreground = (Brush)FindResource("TextPrimaryBrush")
-                });
-                Grid.SetColumn(spDetalle, 1);
-                grid.Children.Add(spDetalle);
-
-                // Columna 3: Tarifa y Botón Seleccionar
-                var spPrecio = new StackPanel { VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Right };
-                spPrecio.Children.Add(new TextBlock
-                {
-                    Text = $"S/. {viaje.Tarifa:N2}",
-                    FontFamily = new FontFamily("Segoe UI"),
-                    FontWeight = FontWeights.Bold,
-                    FontSize = 17,
-                    Foreground = (Brush)FindResource("PrimaryBrush"),
-                    HorizontalAlignment = HorizontalAlignment.Right
-                });
-                spPrecio.Children.Add(new TextBlock
-                {
-                    Text = esSeleccionado ? "✓ Seleccionado" : "Elegir viaje",
-                    FontFamily = new FontFamily("Segoe UI"),
-                    FontWeight = FontWeights.SemiBold,
-                    FontSize = 11,
-                    Foreground = esSeleccionado ? (Brush)FindResource("PrimaryAccentBrush") : (Brush)FindResource("TextSecondaryBrush"),
-                    HorizontalAlignment = HorizontalAlignment.Right
-                });
-                Grid.SetColumn(spPrecio, 2);
-                grid.Children.Add(spPrecio);
-
-                border.Child = grid;
-                border.MouseLeftButtonUp += (s, e) =>
-                {
-                    _viajeSeleccionado = viaje;
-                    RenderizarListaViajes();
-                    ActualizarResumenViaje();
-                };
-
-                panelViajesDisponibles.Children.Add(border);
-            }
-        }
-
-        private void ActualizarResumenViaje()
-        {
-            if (_viajeSeleccionado != null)
-            {
-                lblResumenSalida.Text = _viajeSeleccionado.SalidaTexto;
-                lblResumenTarifa.Text = $"S/. {_viajeSeleccionado.Tarifa:N2}";
-                lblTotalPagar.Text = $"S/. {_viajeSeleccionado.Tarifa:N2}";
-                lblBusInfo.Text = $" ({_viajeSeleccionado.Servicio})";
-                CalcularVuelto();
-            }
-        }
-
-        private void CmbRuta_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            if (cmbOrigen?.SelectedItem != null && cmbDestino?.SelectedItem != null)
-            {
-                string ruta = $"{cmbOrigen.SelectedItem} ➔ {cmbDestino.SelectedItem}";
-                if (lblRutaSeleccionada != null) lblRutaSeleccionada.Text = $" ({ruta})";
-                if (lblResumenRuta != null) lblResumenRuta.Text = ruta;
-            }
-        }
-
-        private void BtnIntercambiar_Click(object sender, RoutedEventArgs e)
-        {
-            int idxOrigen = cmbOrigen.SelectedIndex;
-            cmbOrigen.SelectedIndex = cmbDestino.SelectedIndex;
-            cmbDestino.SelectedIndex = idxOrigen;
-        }
-
-        private void RbMetodoPago_Checked(object sender, RoutedEventArgs e)
-        {
-            if (panelEfectivo != null)
-            {
-                panelEfectivo.Visibility = (rbEfectivo?.IsChecked == true) ? Visibility.Visible : Visibility.Collapsed;
-            }
-        }
-
-        private void TxtMontoRecibido_TextChanged(object sender, TextChangedEventArgs e)
-        {
-            CalcularVuelto();
-        }
-
-        private void CalcularVuelto()
-        {
-            if (lblVuelto == null || _viajeSeleccionado == null) return;
-
-            if (decimal.TryParse(txtMontoRecibido?.Text, NumberStyles.Any, CultureInfo.InvariantCulture, out decimal recibido))
-            {
-                decimal total = _viajeSeleccionado.Tarifa;
-                decimal vuelto = recibido - total;
-                if (vuelto >= 0)
-                {
-                    lblVuelto.Text = $"S/. {vuelto:N2}";
-                    lblVuelto.Foreground = (Brush)FindResource("CajaSuccessBrush");
-                }
-                else
-                {
-                    lblVuelto.Text = $"Faltan S/. {Math.Abs(vuelto):N2}";
-                    lblVuelto.Foreground = (Brush)FindResource("AsientoOcupadoBrush");
+                    e.CancelCommand();
                 }
             }
             else
             {
-                lblVuelto.Text = "Monto inválido";
-                lblVuelto.Foreground = (Brush)FindResource("AsientoOcupadoBrush");
+                e.CancelCommand();
             }
-        }
-
-        private void BtnEmitirBoleto_Click(object sender, RoutedEventArgs e)
-        {
-            // 1. Validar asiento seleccionado
-            if (!_asientoSeleccionado.HasValue)
-            {
-                MessageBox.Show("Por favor, seleccione un asiento disponible en el croquis del bus.", 
-                                "Asiento Requerido", 
-                                MessageBoxButton.OK, 
-                                MessageBoxImage.Warning);
-                return;
-            }
-
-            // 2. Validar datos del pasajero
-            string dni = txtDni.Text.Trim();
-            string nombres = txtNombres.Text.Trim();
-
-            if (string.IsNullOrWhiteSpace(dni) || dni.Length != 8 || !dni.All(char.IsDigit))
-            {
-                MessageBox.Show("Ingrese un número de DNI válido de 8 dígitos.", 
-                                "DNI Inválido", 
-                                MessageBoxButton.OK, 
-                                MessageBoxImage.Warning);
-                txtDni.Focus();
-                return;
-            }
-
-            if (string.IsNullOrWhiteSpace(nombres))
-            {
-                MessageBox.Show("Ingrese los nombres y apellidos del pasajero.", 
-                                "Nombre Requerido", 
-                                MessageBoxButton.OK, 
-                                MessageBoxImage.Warning);
-                txtNombres.Focus();
-                return;
-            }
-
-            // 3. Confirmar emisión y marcar asiento como Ocupado
-            int asientoOcupadoNum = _asientoSeleccionado.Value;
-            var asientoObj = _asientos.FirstOrDefault(a => a.NroAsiento == asientoOcupadoNum);
-            if (asientoObj != null)
-            {
-                asientoObj.Estado = "Ocupado";
-            }
-
-            string metodoPago = rbEfectivo.IsChecked == true ? "Efectivo" : (rbYape.IsChecked == true ? "Yape/Plin" : "Tarjeta");
-
-            MessageBox.Show(
-                $"¡Boleto emitido con éxito!\n\n" +
-                $"• Pasajero: {nombres}\n" +
-                $"• DNI: {dni}\n" +
-                $"• Ruta: {cmbOrigen.SelectedItem} ➔ {cmbDestino.SelectedItem}\n" +
-                $"• Salida: {_viajeSeleccionado.Hora} ({_viajeSeleccionado.Servicio})\n" +
-                $"• Asiento Asignado: N° {asientoOcupadoNum:00} (Piso {asientoObj?.Piso})\n" +
-                $"• Método de Pago: {metodoPago}\n" +
-                $"• Total Cobrado: S/. {_viajeSeleccionado.Tarifa:N2}\n\n" +
-                $"Imprimiendo comprobante de viaje...",
-                "Venta Registrada Exitosamente",
-                MessageBoxButton.OK,
-                MessageBoxImage.Information);
-
-            // 4. Limpiar selección y campos
-            _asientoSeleccionado = null;
-            lblAsientoSeleccionadoTexto.Text = "Ninguno seleccionado";
-            lblResumenAsiento.Text = "N° --";
-            txtDni.Clear();
-            txtNombres.Clear();
-            RenderizarPiso(_pisoActual);
         }
 
         private void BtnCerrarSesion_Click(object sender, RoutedEventArgs e)
         {
             var login = new MainWindow();
+            Application.Current.MainWindow = login;
             login.Show();
             this.Close();
         }
     }
+
+    #region ViewModels Auxiliares
+
+    public class UsuarioSessionModel
+    {
+        public string Username { get; set; } = "OpControl";
+        public string Rol { get; set; } = "Operador";
+        public int CajaTurnoID { get; set; } = 1;
+        public string Nombres { get; set; } = "Operador de Control";
+    }
+
+    public class AsientoItemViewModel : ViewModelBase
+    {
+        public int NroAsiento { get; set; }
+        public int Piso { get; set; } = 1;
+
+        private string _estado = "Libre";
+        public string Estado
+        {
+            get => _estado;
+            set
+            {
+                if (SetProperty(ref _estado, value))
+                {
+                    OnPropertyChanged(nameof(EstadoVisual));
+                    OnPropertyChanged(nameof(EsSeleccionado));
+                    OnPropertyChanged(nameof(EsClickeable));
+                }
+            }
+        }
+
+        public string EstadoVisual => Estado;
+        public bool EsSeleccionado => Estado == "Seleccionado";
+        public bool EsClickeable => Estado != "Ocupado";
+
+        public ICommand? ClickCommand { get; set; }
+    }
+
+    public class FilaAsientoItemViewModel
+    {
+        public AsientoItemViewModel? AsientoVentanaIzq { get; set; }
+        public AsientoItemViewModel? AsientoPasilloIzq { get; set; }
+        public AsientoItemViewModel? AsientoPasilloDer { get; set; }
+        public AsientoItemViewModel? AsientoVentanaDer { get; set; }
+    }
+
+    public class PasajeroItemViewModel : ViewModelBase
+    {
+        public int NroAsiento { get; set; }
+        public int Piso { get; set; }
+        public decimal Precio { get; set; }
+
+        private string _dni = "";
+        public string Dni
+        {
+            get => _dni;
+            set => SetProperty(ref _dni, value);
+        }
+
+        private string _nombres = "";
+        public string Nombres
+        {
+            get => _nombres;
+            set => SetProperty(ref _nombres, value);
+        }
+    }
+
+    public class PresetItemViewModel
+    {
+        public string Nombre { get; set; } = "";
+        public string Icono { get; set; } = "Box";
+        public string Descripcion { get; set; } = "";
+        public string TarifaDisplay { get; set; } = "";
+        public decimal Tarifa { get; set; }
+    }
+
+    public class ViajeItemViewModel : ViewModelBase
+    {
+        public int ViajeID { get; set; }
+        public string Origen { get; set; } = "Lima";
+        public string Destino { get; set; } = "Huancayo";
+        public string BusPlaca { get; set; } = "ABC-123";
+        public string TipoServicio { get; set; } = "Servicio Directo";
+        public string Categoria { get; set; } = "VIP";
+        public string HoraSalidaTexto { get; set; } = "08:00 AM";
+        public string HoraLlegadaTexto { get; set; } = "03:30 PM";
+        public string Duracion { get; set; } = "07h 30m";
+        public DateTime FechaHoraSalida { get; set; } = DateTime.Today.AddHours(8);
+        public DateTime FechaHoraLlegada { get; set; } = DateTime.Today.AddHours(15).AddMinutes(30);
+        public decimal PrecioBase { get; set; } = 65.00m;
+
+        public string RutaTexto => $"{Origen} ➔ {Destino}";
+        public string SalidaCompletaTexto => $"Salida: {HoraSalidaTexto} ({RutaTexto})";
+    }
+
+    #endregion
+
+    #region ViewModel Principal de Venta Integrada
+
+    public class VentaIntegradaViewModel : ViewModelBase
+    {
+        private readonly Window _window;
+
+        public UsuarioSessionModel Session { get; } = new();
+
+        private decimal _saldoCajaActual = 500.00m;
+        public decimal SaldoCajaActual
+        {
+            get => _saldoCajaActual;
+            set => SetProperty(ref _saldoCajaActual, value);
+        }
+
+        // --- Búsqueda y Rutas ---
+        public ObservableCollection<string> OrigenesDisponibles { get; } =
+            new() { "Lima", "Huancayo", "Arequipa", "Trujillo", "Cusco" };
+
+        public ObservableCollection<string> DestinosDisponibles { get; } =
+            new() { "Huancayo", "Lima", "Arequipa", "Ayacucho", "Chiclayo" };
+
+        private string? _origenSeleccionado;
+        public string? OrigenSeleccionado
+        {
+            get => _origenSeleccionado;
+            set => SetProperty(ref _origenSeleccionado, value);
+        }
+
+        private string? _destinoSeleccionado;
+        public string? DestinoSeleccionado
+        {
+            get => _destinoSeleccionado;
+            set => SetProperty(ref _destinoSeleccionado, value);
+        }
+
+        public DateTime? FechaIda { get; set; } = DateTime.Today;
+        public DateTime FechaMinima { get; } = DateTime.Today;
+        public DateTime? FechaVuelta { get; set; }
+        public DateTime FechaVueltaMinima { get; } = DateTime.Today;
+
+        // --- Navegación entre Paneles del Centro ---
+        private bool _mostrarResultadosViajes;
+        public bool MostrarResultadosViajes
+        {
+            get => _mostrarResultadosViajes;
+            set => SetProperty(ref _mostrarResultadosViajes, value);
+        }
+
+        private bool _mostrarMapaAsientos;
+        public bool MostrarMapaAsientos
+        {
+            get => _mostrarMapaAsientos;
+            set => SetProperty(ref _mostrarMapaAsientos, value);
+        }
+
+        private bool _mostrarPanelViajes = true;
+        public bool MostrarPanelViajes
+        {
+            get => _mostrarPanelViajes;
+            set => SetProperty(ref _mostrarPanelViajes, value);
+        }
+
+        private bool _mostrarPanelPasajeros;
+        public bool MostrarPanelPasajeros
+        {
+            get => _mostrarPanelPasajeros;
+            set => SetProperty(ref _mostrarPanelPasajeros, value);
+        }
+
+        private bool _mostrarPanelPago;
+        public bool MostrarPanelPago
+        {
+            get => _mostrarPanelPago;
+            set => SetProperty(ref _mostrarPanelPago, value);
+        }
+
+        // --- Asientos y Croquis ---
+        private int _pisoActual = 1;
+        public ObservableCollection<FilaAsientoItemViewModel> FilasAsientosVisibles { get; } = new();
+        public ObservableCollection<AsientoItemViewModel> AsientosSeleccionados { get; } = new();
+        private readonly List<AsientoItemViewModel> _todosLosAsientos = new();
+
+        private bool _cargandoAsientos;
+        public bool CargandoAsientos
+        {
+            get => _cargandoAsientos;
+            set => SetProperty(ref _cargandoAsientos, value);
+        }
+
+        // --- Viajes Disponibles ---
+        public ObservableCollection<ViajeItemViewModel> ViajesDisponibles { get; } = new();
+
+        private ViajeItemViewModel? _viajeSeleccionado;
+        public ViajeItemViewModel? ViajeSeleccionado
+        {
+            get => _viajeSeleccionado;
+            set
+            {
+                if (SetProperty(ref _viajeSeleccionado, value))
+                {
+                    OnPropertyChanged(nameof(TextoBotonContinuar));
+                    CalcularLiquidacion();
+                }
+            }
+        }
+
+        // --- Modalidad y Carga ---
+        private bool _esModoPasajeConEquipaje = true;
+        public bool EsModoPasajeConEquipaje
+        {
+            get => _esModoPasajeConEquipaje;
+            set
+            {
+                if (SetProperty(ref _esModoPasajeConEquipaje, value))
+                {
+                    if (value)
+                    {
+                        EsSoloEncomienda = false;
+                    }
+                    OnPropertyChanged(nameof(EsSoloEncomienda));
+                    CalcularLiquidacion();
+                }
+            }
+        }
+
+        private bool _esSoloEncomienda;
+        public bool EsSoloEncomienda
+        {
+            get => _esSoloEncomienda;
+            set
+            {
+                if (SetProperty(ref _esSoloEncomienda, value))
+                {
+                    if (value)
+                    {
+                        EsModoPasajeConEquipaje = false;
+                        MostrarMapaAsientos = false;
+                    }
+                    OnPropertyChanged(nameof(EsModoPasajeConEquipaje));
+                    CalcularLiquidacion();
+                }
+            }
+        }
+
+        public bool IncluyeEncomienda { get; set; }
+
+        public ObservableCollection<PresetItemViewModel> PresetsDisponibles { get; } = new()
+        {
+            new PresetItemViewModel { Nombre = "Sobre / Doc", Icono = "Envelope", Descripcion = "Hasta 1 Kg", Tarifa = 15.00m, TarifaDisplay = "S/. 15.00" },
+            new PresetItemViewModel { Nombre = "Paquete Chico", Icono = "Box", Descripcion = "Hasta 5 Kg", Tarifa = 25.00m, TarifaDisplay = "S/. 25.00" },
+            new PresetItemViewModel { Nombre = "Caja Mediana", Icono = "BoxesStacked", Descripcion = "Hasta 15 Kg", Tarifa = 40.00m, TarifaDisplay = "S/. 40.00" },
+            new PresetItemViewModel { Nombre = "Carga Especial", Icono = "TruckRampBox", Descripcion = "Por Kg adicional", Tarifa = 50.00m, TarifaDisplay = "S/. 50.00" }
+        };
+
+        private PresetItemViewModel? _presetSeleccionado;
+        public PresetItemViewModel? PresetSeleccionado
+        {
+            get => _presetSeleccionado;
+            set
+            {
+                if (SetProperty(ref _presetSeleccionado, value))
+                {
+                    if (value != null)
+                    {
+                        EncomiendaCosto = value.Tarifa;
+                    }
+                    CalcularLiquidacion();
+                }
+            }
+        }
+
+        public bool EsEntregaAgencia { get; set; } = true;
+        public bool EsEntregaDomicilio { get; set; }
+        public string ModalidadEntrega => EsEntregaDomicilio ? "Domicilio" : "Agencia";
+        public decimal RecargoDelivery => EsEntregaDomicilio ? 10.00m : 0.00m;
+
+        private decimal _encomiendaCosto;
+        public decimal EncomiendaCosto
+        {
+            get => _encomiendaCosto;
+            set => SetProperty(ref _encomiendaCosto, value);
+        }
+        public decimal TarifaPorKg => 2.50m;
+        public decimal EncomiendaPesoKg { get; set; } = 5.0m;
+        public string EncomiendaPesoKgTexto { get; set; } = "5.0";
+        public string EncomiendaDescripcion { get; set; } = "Paquete sellado";
+        public bool EsCargaPersonalizada => false;
+        public bool EsPesoMaximoEncomienda => false;
+        public string TerminalLlegadaDisplay => "Terminal Principal";
+        public string DireccionEntrega { get; set; } = "";
+        public string ReferenciaEntrega { get; set; } = "";
+
+        // Encomienda Remitente / Destinatario
+        public ObservableCollection<string> TiposDocumentoDisponibles { get; } = new() { "DNI", "RUC", "C.E." };
+        public string RemitenteTipoDoc { get; set; } = "DNI";
+        public string RemitenteDoc { get; set; } = "";
+        public int RemitenteDocMaxLength => 8;
+        public string RemitenteNombre { get; set; } = "";
+        public string RemitenteTelefono { get; set; } = "";
+
+        public string DestinatarioTipoDoc { get; set; } = "DNI";
+        public string DestinatarioDoc { get; set; } = "";
+        public int DestinatarioDocMaxLength => 8;
+        public string DestinatarioNombre { get; set; } = "";
+        public string DestinatarioTelefono { get; set; } = "";
+
+        // --- Pasajeros y Liquidación ---
+        public ObservableCollection<PasajeroItemViewModel> Pasajeros { get; } = new();
+
+        public decimal TotalBoletos => AsientosSeleccionados.Count * (ViajeSeleccionado?.PrecioBase ?? 0m);
+        public decimal TotalVenta => TotalBoletos + (EsSoloEncomienda || IncluyeEncomienda ? EncomiendaCosto + RecargoDelivery : 0m);
+
+        public bool PuedeContinuarAPasajeros => AsientosSeleccionados.Count > 0 || EsSoloEncomienda;
+        public string TextoBotonContinuar => EsSoloEncomienda ? "Continuar a Guía de Encomienda ➔" : (AsientosSeleccionados.Count > 0 ? $"Continuar con {AsientosSeleccionados.Count} pasajero(s) ➔" : "Seleccione al menos 1 asiento");
+        public string TextoBotonContinuarAPago => "Continuar al Paso 3: Pago ➔";
+        public string TextoBotonConfirmarPago => "Confirmar Pago y Emitir";
+        public string TextoBotonFooterConfirmar => "Confirmar Venta y Emitir Comprobante";
+        public string TextoBotonVolverDePaso2 => "Volver a Salidas";
+        public string TextoBotonVolverDePago => "Volver a Pasajeros";
+
+        // --- Pago ---
+        private string _metodoPagoSeleccionado = "Efectivo";
+        public string MetodoPagoSeleccionado
+        {
+            get => _metodoPagoSeleccionado;
+            set
+            {
+                if (SetProperty(ref _metodoPagoSeleccionado, value))
+                {
+                    OnPropertyChanged(nameof(EsPagoEfectivo));
+                    OnPropertyChanged(nameof(EsPagoDigital));
+                    CalcularLiquidacion();
+                }
+            }
+        }
+
+        public bool EsPagoEfectivo => MetodoPagoSeleccionado == "Efectivo";
+        public bool EsPagoDigital => MetodoPagoSeleccionado != "Efectivo";
+
+        private decimal _montoRecibido = 100.00m;
+        public decimal MontoRecibido
+        {
+            get => _montoRecibido;
+            set
+            {
+                if (SetProperty(ref _montoRecibido, value))
+                {
+                    OnPropertyChanged(nameof(Vuelto));
+                    OnPropertyChanged(nameof(FaltaDinero));
+                    OnPropertyChanged(nameof(DiferenciaFaltante));
+                }
+            }
+        }
+
+        public decimal Vuelto => MontoRecibido >= TotalVenta ? MontoRecibido - TotalVenta : 0m;
+        public bool FaltaDinero => EsPagoEfectivo && MontoRecibido < TotalVenta;
+        public decimal DiferenciaFaltante => TotalVenta - MontoRecibido;
+        public string NroOperacion { get; set; } = "";
+        public int MaxLongitudOperacion => 12;
+
+        // Alertas
+        public bool MostrarAlerta { get; set; }
+        public string MensajeAlerta { get; set; } = "";
+        public string TipoAlerta { get; set; } = "Info";
+
+        // --- Comandos ---
+        public ICommand BuscarViajesCommand { get; }
+        public ICommand LimpiarBusquedaCommand { get; }
+        public ICommand IntercambiarCiudadesCommand { get; }
+        public ICommand OrdenarPorSalidaCommand { get; }
+        public ICommand OrdenarPorPrecioCommand { get; }
+        public ICommand SeleccionarViajeCommand { get; }
+        public ICommand CambiarPisoCommand { get; }
+        public ICommand IrAPasajerosCommand { get; }
+        public ICommand VolverAViajesCommand { get; }
+        public ICommand IrAPagoCommand { get; }
+        public ICommand VolverAPasajerosCommand { get; }
+        public ICommand ConfirmarVentaFinalCommand { get; }
+        public ICommand CerrarSesionCommand { get; }
+        public ICommand RefrescarMapaCommand { get; }
+        public ICommand MontoRapidoCommand { get; }
+
+        public VentaIntegradaViewModel(Window window)
+        {
+            _window = window;
+
+            _presetSeleccionado = PresetsDisponibles[0];
+            _encomiendaCosto = _presetSeleccionado.Tarifa;
+
+            BuscarViajesCommand = new RelayCommand(BuscarViajes);
+            LimpiarBusquedaCommand = new RelayCommand(LimpiarBusqueda);
+            IntercambiarCiudadesCommand = new RelayCommand(IntercambiarCiudades);
+            OrdenarPorSalidaCommand = new RelayCommand(() => OrdenarViajes(v => v.FechaHoraSalida));
+            OrdenarPorPrecioCommand = new RelayCommand(() => OrdenarViajes(v => v.PrecioBase));
+            SeleccionarViajeCommand = new RelayCommand<ViajeItemViewModel>(SeleccionarViaje);
+            CambiarPisoCommand = new RelayCommand<object>(p => CambiarPiso(Convert.ToInt32(p)));
+            IrAPasajerosCommand = new RelayCommand(IrAPasajeros, () => PuedeContinuarAPasajeros);
+            VolverAViajesCommand = new RelayCommand(VolverAViajes);
+            IrAPagoCommand = new RelayCommand(IrAPago);
+            VolverAPasajerosCommand = new RelayCommand(VolverAPasajeros);
+            ConfirmarVentaFinalCommand = new RelayCommand(ConfirmarVenta);
+            CerrarSesionCommand = new RelayCommand(CerrarSesion);
+            RefrescarMapaCommand = new RelayCommand(RefrescarMapa);
+            MontoRapidoCommand = new RelayCommand<string>(AplicarMontoRapido);
+
+            InicializarCroquisBase();
+        }
+
+        private void BuscarViajes()
+        {
+            ViajesDisponibles.Clear();
+            string orig = string.IsNullOrWhiteSpace(OrigenSeleccionado) ? "Lima" : OrigenSeleccionado;
+            string dest = string.IsNullOrWhiteSpace(DestinoSeleccionado) ? "Huancayo" : DestinoSeleccionado;
+
+            ViajesDisponibles.Add(new ViajeItemViewModel
+            {
+                ViajeID = 1,
+                Origen = orig,
+                Destino = dest,
+                BusPlaca = "ABC-123",
+                TipoServicio = "Servicio Directo",
+                Categoria = "VIP",
+                HoraSalidaTexto = "08:00 AM",
+                HoraLlegadaTexto = "03:30 PM",
+                Duracion = "07h 30m",
+                FechaHoraSalida = DateTime.Today.AddHours(8),
+                FechaHoraLlegada = DateTime.Today.AddHours(15).AddMinutes(30),
+                PrecioBase = 65.00m
+            });
+
+            ViajesDisponibles.Add(new ViajeItemViewModel
+            {
+                ViajeID = 2,
+                Origen = orig,
+                Destino = dest,
+                BusPlaca = "XYZ-789",
+                TipoServicio = "Servicio Ejecutivo",
+                Categoria = "Ejecutivo",
+                HoraSalidaTexto = "01:30 PM",
+                HoraLlegadaTexto = "09:00 PM",
+                Duracion = "07h 30m",
+                FechaHoraSalida = DateTime.Today.AddHours(13).AddMinutes(30),
+                FechaHoraLlegada = DateTime.Today.AddHours(21),
+                PrecioBase = 55.00m
+            });
+
+            ViajesDisponibles.Add(new ViajeItemViewModel
+            {
+                ViajeID = 3,
+                Origen = orig,
+                Destino = dest,
+                BusPlaca = "PER-456",
+                TipoServicio = "Servicio Premium",
+                Categoria = "Premium",
+                HoraSalidaTexto = "09:00 PM",
+                HoraLlegadaTexto = "04:30 AM",
+                Duracion = "07h 30m",
+                FechaHoraSalida = DateTime.Today.AddHours(21),
+                FechaHoraLlegada = DateTime.Today.AddDays(1).AddHours(4).AddMinutes(30),
+                PrecioBase = 80.00m
+            });
+
+            MostrarResultadosViajes = true;
+        }
+
+        private void LimpiarBusqueda()
+        {
+            OrigenSeleccionado = null;
+            DestinoSeleccionado = null;
+            ViajesDisponibles.Clear();
+            ViajeSeleccionado = null;
+            MostrarResultadosViajes = false;
+            MostrarMapaAsientos = false;
+            AsientosSeleccionados.Clear();
+            FilasAsientosVisibles.Clear();
+            MostrarPanelViajes = true;
+            MostrarPanelPasajeros = false;
+            MostrarPanelPago = false;
+            CalcularLiquidacion();
+        }
+
+        private void IntercambiarCiudades()
+        {
+            string? temp = OrigenSeleccionado;
+            OrigenSeleccionado = DestinoSeleccionado;
+            DestinoSeleccionado = temp;
+        }
+
+        private void OrdenarViajes<TKey>(Func<ViajeItemViewModel, TKey> keySelector)
+        {
+            var ordenados = ViajesDisponibles.OrderBy(keySelector).ToList();
+            ViajesDisponibles.Clear();
+            foreach (var v in ordenados) ViajesDisponibles.Add(v);
+        }
+
+        private void SeleccionarViaje(ViajeItemViewModel? viaje)
+        {
+            if (viaje == null) return;
+            ViajeSeleccionado = viaje;
+            MostrarMapaAsientos = true;
+            AsientosSeleccionados.Clear();
+            CargarAsientos();
+        }
+
+        private void InicializarCroquisBase()
+        {
+            _todosLosAsientos.Clear();
+            // Piso 1: 20 asientos
+            for (int i = 1; i <= 20; i++)
+            {
+                var a = new AsientoItemViewModel
+                {
+                    NroAsiento = i,
+                    Piso = 1,
+                    Estado = (i == 3 || i == 4 || i == 11 || i == 12) ? "Ocupado" : "Libre"
+                };
+                a.ClickCommand = new RelayCommand(() => ToggleAsiento(a));
+                _todosLosAsientos.Add(a);
+            }
+            // Piso 2: 28 asientos
+            for (int i = 21; i <= 48; i++)
+            {
+                var a = new AsientoItemViewModel
+                {
+                    NroAsiento = i,
+                    Piso = 2,
+                    Estado = (i == 23 || i == 24 || i == 35 || i == 36 || i == 42) ? "Ocupado" : "Libre"
+                };
+                a.ClickCommand = new RelayCommand(() => ToggleAsiento(a));
+                _todosLosAsientos.Add(a);
+            }
+        }
+
+        private void CargarAsientos()
+        {
+            FilasAsientosVisibles.Clear();
+            var pisoAsientos = _todosLosAsientos.Where(a => a.Piso == _pisoActual).OrderBy(a => a.NroAsiento).ToList();
+
+            for (int i = 0; i < pisoAsientos.Count; i += 4)
+            {
+                var fila = new FilaAsientoItemViewModel
+                {
+                    AsientoVentanaIzq = i < pisoAsientos.Count ? pisoAsientos[i] : null,
+                    AsientoPasilloIzq = i + 1 < pisoAsientos.Count ? pisoAsientos[i + 1] : null,
+                    AsientoPasilloDer = i + 2 < pisoAsientos.Count ? pisoAsientos[i + 2] : null,
+                    AsientoVentanaDer = i + 3 < pisoAsientos.Count ? pisoAsientos[i + 3] : null
+                };
+                FilasAsientosVisibles.Add(fila);
+            }
+        }
+
+        private void CambiarPiso(int piso)
+        {
+            _pisoActual = piso;
+            CargarAsientos();
+        }
+
+        private void ToggleAsiento(AsientoItemViewModel asiento)
+        {
+            if (asiento.Estado == "Ocupado") return;
+
+            if (asiento.Estado == "Seleccionado")
+            {
+                asiento.Estado = "Libre";
+                AsientosSeleccionados.Remove(asiento);
+            }
+            else
+            {
+                if (AsientosSeleccionados.Count >= 5)
+                {
+                    MessageBox.Show("Puede seleccionar un máximo de 5 asientos por operación.", "Límite Alcanzado", MessageBoxButton.OK, MessageBoxImage.Information);
+                    return;
+                }
+                asiento.Estado = "Seleccionado";
+                AsientosSeleccionados.Add(asiento);
+            }
+
+            OnPropertyChanged(nameof(TextoBotonContinuar));
+            OnPropertyChanged(nameof(PuedeContinuarAPasajeros));
+            CalcularLiquidacion();
+        }
+
+        private void RefrescarMapa()
+        {
+            CargarAsientos();
+        }
+
+        private void IrAPasajeros()
+        {
+            Pasajeros.Clear();
+            foreach (var a in AsientosSeleccionados)
+            {
+                Pasajeros.Add(new PasajeroItemViewModel
+                {
+                    NroAsiento = a.NroAsiento,
+                    Piso = a.Piso,
+                    Precio = ViajeSeleccionado?.PrecioBase ?? 0m
+                });
+            }
+
+            MostrarPanelViajes = false;
+            MostrarPanelPasajeros = true;
+            MostrarPanelPago = false;
+        }
+
+        private void VolverAViajes()
+        {
+            MostrarPanelViajes = true;
+            MostrarPanelPasajeros = false;
+            MostrarPanelPago = false;
+        }
+
+        private void IrAPago()
+        {
+            MostrarPanelViajes = false;
+            MostrarPanelPasajeros = false;
+            MostrarPanelPago = true;
+            CalcularLiquidacion();
+        }
+
+        private void VolverAPasajeros()
+        {
+            MostrarPanelViajes = false;
+            MostrarPanelPasajeros = true;
+            MostrarPanelPago = false;
+        }
+
+        private void ConfirmarVenta()
+        {
+            MessageBox.Show(
+                $"¡Venta registrada con éxito!\n\n" +
+                $"• Ruta: {ViajeSeleccionado?.RutaTexto}\n" +
+                $"• Total Boletos: S/. {TotalBoletos:N2}\n" +
+                $"• Total Liquidado: S/. {TotalVenta:N2}\n" +
+                $"• Método de Pago: {MetodoPagoSeleccionado}\n\n" +
+                $"Comprobante emitido correctamente.",
+                "Emisión Exitosa",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+
+            // Marcar asientos como ocupados
+            foreach (var a in AsientosSeleccionados)
+            {
+                a.Estado = "Ocupado";
+            }
+            AsientosSeleccionados.Clear();
+
+            // Retornar a la vista inicial
+            MostrarPanelViajes = true;
+            MostrarPanelPasajeros = false;
+            MostrarPanelPago = false;
+            MostrarMapaAsientos = false;
+            CalcularLiquidacion();
+        }
+
+        private void AplicarMontoRapido(string? valor)
+        {
+            if (valor == "Exacto")
+            {
+                MontoRecibido = TotalVenta;
+            }
+            else if (valor != null && valor.StartsWith("+") && decimal.TryParse(valor.Substring(1), out decimal suma))
+            {
+                MontoRecibido += suma;
+            }
+            else if (decimal.TryParse(valor, out decimal montoFijo))
+            {
+                MontoRecibido = montoFijo;
+            }
+        }
+
+        private void CalcularLiquidacion()
+        {
+            OnPropertyChanged(nameof(TotalBoletos));
+            OnPropertyChanged(nameof(TotalVenta));
+            OnPropertyChanged(nameof(EncomiendaCosto));
+            OnPropertyChanged(nameof(RecargoDelivery));
+            OnPropertyChanged(nameof(Vuelto));
+            OnPropertyChanged(nameof(FaltaDinero));
+            OnPropertyChanged(nameof(DiferenciaFaltante));
+            OnPropertyChanged(nameof(PuedeContinuarAPasajeros));
+            OnPropertyChanged(nameof(TextoBotonContinuar));
+        }
+
+        private void CerrarSesion()
+        {
+            var login = new MainWindow();
+            Application.Current.MainWindow = login;
+            login.Show();
+            _window.Close();
+        }
+    }
+
+    #endregion
 }

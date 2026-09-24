@@ -1,31 +1,53 @@
 <Application x:Class="SistemaTransportes.App"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:converters="clr-namespace:SistemaTransportes.Converters"
+             xmlns:fa="http://schemas.awesome.incremented/wpf/xaml/fontawesome.sharp"
              xmlns:local="clr-namespace:SistemaTransportes"
-             StartupUri="MainWindow.xaml">
+             StartupUri="MainWindow.xaml"
+             ShutdownMode="OnLastWindowClose">
     <Application.Resources>
         <ResourceDictionary>
-            <!-- Paleta de Colores Oficial -->
+            <!-- ================================================================= -->
+            <!-- 4. SISTEMA DE DISEÑO: PALETA "EFICIENCIA CORPORATIVA" (OFICIAL)   -->
+            <!-- ================================================================= -->
             <SolidColorBrush Color="#F4F6F9" x:Key="BgGeneralBrush" />
             <SolidColorBrush Color="#FFFFFF" x:Key="PanelCardBrush" />
             <SolidColorBrush Color="#1A365D" x:Key="PrimaryBrush" />
             <SolidColorBrush Color="#2B6CB0" x:Key="PrimaryAccentBrush" />
             <SolidColorBrush Color="#E67E22" x:Key="ContrastOrangeBrush" />
-            <SolidColorBrush Color="#D35400" x:Key="ContrastOrangeDarkBrush" />
-            <SolidColorBrush Color="#333333" x:Key="TextPrimaryBrush" />
-            <SolidColorBrush Color="#666666" x:Key="TextSecondaryBrush" />
-            <SolidColorBrush Color="#E2E8F0" x:Key="BorderLightBrush" />
-
-            <!-- Pinceles de Venta y Estados -->
             <SolidColorBrush Color="#2ECC71" x:Key="AsientoLibreBrush" />
             <SolidColorBrush Color="#E74C3C" x:Key="AsientoOcupadoBrush" />
             <SolidColorBrush Color="#2B6CB0" x:Key="AsientoSeleccionadoBrush" />
             <SolidColorBrush Color="#27AE60" x:Key="CajaSuccessBrush" />
             <SolidColorBrush Color="#E8F8F5" x:Key="CajaBgBrush" />
-            <SolidColorBrush Color="#008080" x:Key="TealBrush" />
-            <SolidColorBrush Color="#E0F2F1" x:Key="TealLightBrush" />
+            <SolidColorBrush Color="#333333" x:Key="TextPrimaryBrush" />
+            <SolidColorBrush Color="#666666" x:Key="TextSecondaryBrush" />
 
-            <!-- Estilos Globales: Tarjetas y Paneles -->
+            <!-- Colores y pinceles complementarios de soporte -->
+            <SolidColorBrush Color="#D35400" x:Key="ContrastOrangeDarkBrush" />
+            <SolidColorBrush Color="#E2E8F0" x:Key="BorderLightBrush" />
+            <SolidColorBrush Color="#CBD5E0" x:Key="BorderMediumBrush" />
+
+            <!-- Paleta Corporativa Teal y Escala de Grises (Componente Selección de Viaje) -->
+            <SolidColorBrush Color="#008080" x:Key="TealBrush" />
+            <SolidColorBrush Color="#006666" x:Key="TealHoverBrush" />
+            <SolidColorBrush Color="#E0F2F1" x:Key="TealLightBrush" />
+            <SolidColorBrush Color="#D1D5DB" x:Key="UnderlineBorderBrush" />
+            <SolidColorBrush Color="#757575" x:Key="IconGrayBrush" />
+
+            <!-- CONVERTERS -->
+            <converters:EstadoAsientoToBrushConverter x:Key="EstadoAsientoConverter" />
+            <converters:BooleanToVisibilityConverter x:Key="BoolToVisConverter" />
+            <converters:BooleanToVisibilityConverter x:Key="InverseBoolToVisConverter" Invert="True" />
+            <converters:CurrencyFormatConverter x:Key="CurrencyConverter" />
+            <converters:NullOrEmptyToVisibilityConverter x:Key="NullToVisConverter" />
+            <converters:DecimalInputConverter x:Key="DecimalConverter" />
+            <converters:DecimalInputConverter x:Key="DecimalInputConverter" />
+            <converters:StringEqualsToBoolConverter x:Key="StringEqualsConverter" />
+
+            <!-- ESTILOS GLOBALES -->
+            <!-- Tarjetas y Paneles -->
             <Style x:Key="CardBorderStyle" TargetType="Border">
                 <Setter Property="Background" Value="{StaticResource PanelCardBrush}" />
                 <Setter Property="CornerRadius" Value="8" />
@@ -75,8 +97,8 @@
                 <Setter Property="Foreground" Value="White" />
                 <Setter Property="FontFamily" Value="Segoe UI" />
                 <Setter Property="FontWeight" Value="Bold" />
-                <Setter Property="FontSize" Value="15" />
-                <Setter Property="Padding" Value="20,12" />
+                <Setter Property="FontSize" Value="16" />
+                <Setter Property="Padding" Value="24,14" />
                 <Setter Property="BorderThickness" Value="0" />
                 <Setter Property="Cursor" Value="Hand" />
                 <Setter Property="Template">
@@ -164,6 +186,108 @@
                     </Setter.Value>
                 </Setter>
             </Style>
+
+            <!-- Estilo modular y plantilla interactiva para los asientos del bus -->
+            <Style x:Key="BotonAsientoStyle" TargetType="Button">
+                <Setter Property="Command" Value="{Binding ClickCommand}" />
+                <Setter Property="IsEnabled" Value="{Binding EsClickeable}" />
+                <Setter Property="Visibility" Value="{Binding Converter={StaticResource NullToVisConverter}}" />
+                <Setter Property="Margin" Value="2" />
+                <Setter Property="Height" Value="46" />
+                <Setter Property="Cursor" Value="Hand" />
+                <Setter Property="BorderThickness" Value="0" />
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="Button">
+                            <Border x:Name="b" Background="{Binding EstadoVisual, Converter={StaticResource EstadoAsientoConverter}}"
+                                    CornerRadius="6" Padding="4,2">
+                                <Grid HorizontalAlignment="Center" VerticalAlignment="Center">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <!-- Icono del Asiento -->
+                                    <Image Grid.Column="0"
+                                           Source="pack://application:,,,/SistemaTransportes;component/imagenes/asiento_white.png"
+                                           Width="20" Height="20" Stretch="Uniform"
+                                           Margin="0,0,5,0" VerticalAlignment="Center" />
+                                    <!-- Número y Estado -->
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding NroAsiento, StringFormat='N° {0}'}"
+                                                   FontFamily="Segoe UI" FontWeight="Bold" FontSize="11.5"
+                                                   Foreground="White" HorizontalAlignment="Left" />
+                                        <TextBlock Text="{Binding Estado}" FontFamily="Segoe UI" FontSize="8.5"
+                                                   Foreground="#F1F5F9" HorizontalAlignment="Left" />
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <DataTrigger Binding="{Binding EsSeleccionado}" Value="True">
+                                    <Setter TargetName="b" Property="BorderBrush" Value="{StaticResource ContrastOrangeBrush}" />
+                                    <Setter TargetName="b" Property="BorderThickness" Value="2.5" />
+                                </DataTrigger>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="b" Property="Opacity" Value="0.85" />
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
+            <!-- Estilo modular y plantilla interactiva para las insignias (pills/badges) de categoría -->
+            <Style x:Key="CategoriaBadgeControlStyle" TargetType="ContentControl">
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="ContentControl">
+                            <Border x:Name="BadgeBorder"
+                                    Background="#EBF5FB" BorderBrush="#AED6F1" BorderThickness="1"
+                                    CornerRadius="12" Padding="10,3" VerticalAlignment="Center">
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <fa:IconImage x:Name="BadgeIcon" Icon="Chair" Width="12" Height="12" Foreground="#1B4F72" Margin="0,0,5,0" VerticalAlignment="Center" />
+                                    <TextBlock x:Name="CatText" Text="{Binding Categoria}" FontFamily="Segoe UI" FontWeight="Bold" FontSize="11"
+                                               Foreground="#1B4F72" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <!-- Clásico: Fondo #EBF5FB, Borde #AED6F1, Texto #1B4F72, Ícono asiento estándar -->
+                                <DataTrigger Binding="{Binding Categoria}" Value="Clásico">
+                                    <Setter TargetName="BadgeBorder" Property="Background" Value="#EBF5FB" />
+                                    <Setter TargetName="BadgeBorder" Property="BorderBrush" Value="#AED6F1" />
+                                    <Setter TargetName="BadgeIcon" Property="Icon" Value="Chair" />
+                                    <Setter TargetName="BadgeIcon" Property="Foreground" Value="#1B4F72" />
+                                    <Setter TargetName="CatText" Property="Foreground" Value="#1B4F72" />
+                                </DataTrigger>
+                                <!-- Ejecutivo: Fondo #E8F8F5, Borde #A3E4D7, Texto #0E6251, Ícono ejecutivo -->
+                                <DataTrigger Binding="{Binding Categoria}" Value="Ejecutivo">
+                                    <Setter TargetName="BadgeBorder" Property="Background" Value="#E8F8F5" />
+                                    <Setter TargetName="BadgeBorder" Property="BorderBrush" Value="#A3E4D7" />
+                                    <Setter TargetName="BadgeIcon" Property="Icon" Value="Briefcase" />
+                                    <Setter TargetName="BadgeIcon" Property="Foreground" Value="#0E6251" />
+                                    <Setter TargetName="CatText" Property="Foreground" Value="#0E6251" />
+                                </DataTrigger>
+                                <!-- VIP: Fondo #FEF9E7, Borde #F9E79F, Texto #7D6608, Ícono VIP -->
+                                <DataTrigger Binding="{Binding Categoria}" Value="VIP">
+                                    <Setter TargetName="BadgeBorder" Property="Background" Value="#FEF9E7" />
+                                    <Setter TargetName="BadgeBorder" Property="BorderBrush" Value="#F9E79F" />
+                                    <Setter TargetName="BadgeIcon" Property="Icon" Value="Star" />
+                                    <Setter TargetName="BadgeIcon" Property="Foreground" Value="#7D6608" />
+                                    <Setter TargetName="CatText" Property="Foreground" Value="#7D6608" />
+                                </DataTrigger>
+                                <!-- Premium: Fondo #F4ECF7, Borde #D2B4DE, Texto #512E5F, Ícono de corona -->
+                                <DataTrigger Binding="{Binding Categoria}" Value="Premium">
+                                    <Setter TargetName="BadgeBorder" Property="Background" Value="#F4ECF7" />
+                                    <Setter TargetName="BadgeBorder" Property="BorderBrush" Value="#D2B4DE" />
+                                    <Setter TargetName="BadgeIcon" Property="Icon" Value="Crown" />
+                                    <Setter TargetName="BadgeIcon" Property="Foreground" Value="#512E5F" />
+                                    <Setter TargetName="CatText" Property="Foreground" Value="#512E5F" />
+                                </DataTrigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
         </ResourceDictionary>
     </Application.Resources>
 </Application>

@@ -110,9 +110,18 @@ namespace SistemaTransportes
                                 MessageBoxImage.Information);
 
                 // 7. Navegación a la ventana de venta de boletos
-                var ventanaVenta = new VentaBoletosWindow();
-                ventanaVenta.Show();
-                this.Close();
+                try
+                {
+                    var ventanaVenta = new VentaBoletosWindow();
+                    Application.Current.MainWindow = ventanaVenta;
+                    ventanaVenta.Show();
+                    this.Close();
+                }
+                catch (Exception ex)
+                {
+                    string detalle = ex.InnerException != null ? $"\nDetalle: {ex.InnerException.Message}" : "";
+                    MessageBox.Show($"Error al cargar la ventana de ventas: {ex.Message}{detalle}", "Error de Interfaz", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
             }
             catch (SqlException ex)
             {
