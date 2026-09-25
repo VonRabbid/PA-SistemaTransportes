@@ -112,7 +112,15 @@ namespace SistemaTransportes
                 // 7. Navegación a la ventana de venta de boletos
                 try
                 {
-                    var ventanaVenta = new VentaBoletosWindow();
+                    var session = new UsuarioSessionModel
+                    {
+                        UsuarioID = usuarioId,
+                        Username = username,
+                        Nombres = nombres,
+                        Rol = "Operador",
+                        CajaTurnoID = cajaTurnoId
+                    };
+                    var ventanaVenta = new VentaBoletosWindow(session);
                     Application.Current.MainWindow = ventanaVenta;
                     ventanaVenta.Show();
                     this.Close();

@@ -1,12 +1,16 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Configuration;
+using System.Data;
 using System.Globalization;
 using System.Linq;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using Microsoft.Data.SqlClient;
 using SistemaTransportes.Common;
 
 namespace SistemaTransportes
@@ -15,10 +19,10 @@ namespace SistemaTransportes
     {
         private static readonly Regex SoloNumerosRegex = new("^[0-9]+$", RegexOptions.Compiled);
 
-        public VentaBoletosWindow()
+        public VentaBoletosWindow(UsuarioSessionModel? session = null)
         {
             InitializeComponent();
-            DataContext = new VentaIntegradaViewModel(this);
+            DataContext = new VentaIntegradaViewModel(this, session);
         }
 
         private void NumeroOperacion_PreviewTextInput(object sender, TextCompositionEventArgs e)
@@ -55,6 +59,7 @@ namespace SistemaTransportes
 
     public class UsuarioSessionModel
     {
+        public int UsuarioID { get; set; }
         public string Username { get; set; } = "OpControl";
         public string Rol { get; set; } = "Operador";
         public int CajaTurnoID { get; set; } = 1;
@@ -96,27 +101,6 @@ namespace SistemaTransportes
         public AsientoItemViewModel? AsientoVentanaDer { get; set; }
     }
 
-    public class PasajeroItemViewModel : ViewModelBase
-    {
-        public int NroAsiento { get; set; }
-        public int Piso { get; set; }
-        public decimal Precio { get; set; }
-
-        private string _dni = "";
-        public string Dni
-        {
-            get => _dni;
-            set => SetProperty(ref _dni, value);
-        }
-
-        private string _nombres = "";
-        public string Nombres
-        {
-            get => _nombres;
-            set => SetProperty(ref _nombres, value);
-        }
-    }
-
     public class PresetItemViewModel
     {
         public string Nombre { get; set; } = "";
@@ -153,9 +137,14 @@ namespace SistemaTransportes
     {
         private readonly Window _window;
 
-        public UsuarioSessionModel Session { get; } = new();
+        private UsuarioSessionModel _session = new();
+        public UsuarioSessionModel Session
+        {
+            get => _session;
+            set => SetProperty(ref _session, value);
+        }
 
-        private decimal _saldoCajaActual = 500.00m;
+        private decimal _saldoCajaActual = 0.00m;
         public decimal SaldoCajaActual
         {
             get => _saldoCajaActual;
@@ -163,17 +152,20 @@ namespace SistemaTransportes
         }
 
         // --- Búsqueda y Rutas ---
-        public ObservableCollection<string> OrigenesDisponibles { get; } =
-            new() { "Lima", "Huancayo", "Arequipa", "Trujillo", "Cusco" };
-
-        public ObservableCollection<string> DestinosDisponibles { get; } =
-            new() { "Huancayo", "Lima", "Arequipa", "Ayacucho", "Chiclayo" };
+        public ObservableCollection<string> OrigenesDisponibles { get; } = new();
+        public ObservableCollection<string> DestinosDisponibles { get; } = new();
 
         private string? _origenSeleccionado;
         public string? OrigenSeleccionado
         {
             get => _origenSeleccionado;
-            set => SetProperty(ref _origenSeleccionado, value);
+            set
+            {
+                if (SetProperty(ref _origenSeleccionado, value))
+                {
+                    CargarDestinosPorOrigen(value);
+                }
+            }
         }
 
         private string? _destinoSeleccionado;
@@ -203,26 +195,9 @@ namespace SistemaTransportes
             set => SetProperty(ref _mostrarMapaAsientos, value);
         }
 
-        private bool _mostrarPanelViajes = true;
-        public bool MostrarPanelViajes
-        {
-            get => _mostrarPanelViajes;
-            set => SetProperty(ref _mostrarPanelViajes, value);
-        }
-
-        private bool _mostrarPanelPasajeros;
-        public bool MostrarPanelPasajeros
-        {
-            get => _mostrarPanelPasajeros;
-            set => SetProperty(ref _mostrarPanelPasajeros, value);
-        }
-
-        private bool _mostrarPanelPago;
-        public bool MostrarPanelPago
-        {
-            get => _mostrarPanelPago;
-            set => SetProperty(ref _mostrarPanelPago, value);
-        }
+        public bool MostrarPanelViajes => true;
+        public bool MostrarPanelPasajeros => false;
+        public bool MostrarPanelPago => false;
 
         // --- Asientos y Croquis ---
         private int _pisoActual = 1;
@@ -354,19 +329,13 @@ namespace SistemaTransportes
         public string DestinatarioNombre { get; set; } = "";
         public string DestinatarioTelefono { get; set; } = "";
 
-        // --- Pasajeros y Liquidación ---
-        public ObservableCollection<PasajeroItemViewModel> Pasajeros { get; } = new();
+        // --- Liquidación de Venta ---
 
         public decimal TotalBoletos => AsientosSeleccionados.Count * (ViajeSeleccionado?.PrecioBase ?? 0m);
         public decimal TotalVenta => TotalBoletos + (EsSoloEncomienda || IncluyeEncomienda ? EncomiendaCosto + RecargoDelivery : 0m);
 
         public bool PuedeContinuarAPasajeros => AsientosSeleccionados.Count > 0 || EsSoloEncomienda;
         public string TextoBotonContinuar => EsSoloEncomienda ? "Continuar a Guía de Encomienda ➔" : (AsientosSeleccionados.Count > 0 ? $"Continuar con {AsientosSeleccionados.Count} pasajero(s) ➔" : "Seleccione al menos 1 asiento");
-        public string TextoBotonContinuarAPago => "Continuar al Paso 3: Pago ➔";
-        public string TextoBotonConfirmarPago => "Confirmar Pago y Emitir";
-        public string TextoBotonFooterConfirmar => "Confirmar Venta y Emitir Comprobante";
-        public string TextoBotonVolverDePaso2 => "Volver a Salidas";
-        public string TextoBotonVolverDePago => "Volver a Pasajeros";
 
         // --- Pago ---
         private string _metodoPagoSeleccionado = "Efectivo";
@@ -422,17 +391,17 @@ namespace SistemaTransportes
         public ICommand SeleccionarViajeCommand { get; }
         public ICommand CambiarPisoCommand { get; }
         public ICommand IrAPasajerosCommand { get; }
-        public ICommand VolverAViajesCommand { get; }
-        public ICommand IrAPagoCommand { get; }
-        public ICommand VolverAPasajerosCommand { get; }
-        public ICommand ConfirmarVentaFinalCommand { get; }
         public ICommand CerrarSesionCommand { get; }
         public ICommand RefrescarMapaCommand { get; }
         public ICommand MontoRapidoCommand { get; }
 
-        public VentaIntegradaViewModel(Window window)
+        public VentaIntegradaViewModel(Window window, UsuarioSessionModel? session = null)
         {
             _window = window;
+            if (session != null)
+            {
+                Session = session;
+            }
 
             _presetSeleccionado = PresetsDisponibles[0];
             _encomiendaCosto = _presetSeleccionado.Tarifa;
@@ -445,95 +414,280 @@ namespace SistemaTransportes
             SeleccionarViajeCommand = new RelayCommand<ViajeItemViewModel>(SeleccionarViaje);
             CambiarPisoCommand = new RelayCommand<object>(p => CambiarPiso(Convert.ToInt32(p)));
             IrAPasajerosCommand = new RelayCommand(IrAPasajeros, () => PuedeContinuarAPasajeros);
-            VolverAViajesCommand = new RelayCommand(VolverAViajes);
-            IrAPagoCommand = new RelayCommand(IrAPago);
-            VolverAPasajerosCommand = new RelayCommand(VolverAPasajeros);
-            ConfirmarVentaFinalCommand = new RelayCommand(ConfirmarVenta);
             CerrarSesionCommand = new RelayCommand(CerrarSesion);
             RefrescarMapaCommand = new RelayCommand(RefrescarMapa);
             MontoRapidoCommand = new RelayCommand<string>(AplicarMontoRapido);
 
-            InicializarCroquisBase();
+            _ = InicializarDatosDesdeBdAsync();
+        }
+
+        private static string ObtenerCadenaConexion()
+        {
+            return ConfigurationManager.ConnectionStrings["BD_Transportes"]?.ConnectionString
+                ?? "Server=tcp:sistema-transportes-2026.database.windows.net,1433;Initial Catalog=BD_Transportes;Persist Security Info=False;User ID=admin_st;Password=1425PA31%;MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;";
+        }
+
+        private async Task InicializarDatosDesdeBdAsync()
+        {
+            try
+            {
+                string connectionString = ObtenerCadenaConexion();
+
+                // 1. Saldo Real de Caja (dbo.CajasTurno)
+                if (Session.CajaTurnoID > 0)
+                {
+                    await Task.Run(() =>
+                    {
+                        using var connection = new SqlConnection(connectionString);
+                        connection.Open();
+
+                        const string queryCaja = @"
+                            SELECT MontoActual 
+                            FROM dbo.CajasTurno 
+                            WHERE CajaTurnoID = @CajaTurnoID;";
+
+                        using var cmdCaja = new SqlCommand(queryCaja, connection);
+                        cmdCaja.Parameters.Add("@CajaTurnoID", SqlDbType.Int).Value = Session.CajaTurnoID;
+
+                        var result = cmdCaja.ExecuteScalar();
+                        if (result != null && result != DBNull.Value)
+                        {
+                            decimal saldo = Convert.ToDecimal(result);
+                            Application.Current.Dispatcher.Invoke(() =>
+                            {
+                                SaldoCajaActual = saldo;
+                            });
+                        }
+                    });
+                }
+
+                // 2. Catálogo Oficial de Ciudades de Origen (dbo.Viajes)
+                await Task.Run(() =>
+                {
+                    using var connection = new SqlConnection(connectionString);
+                    connection.Open();
+
+                    const string queryOrigenes = @"
+                        SELECT DISTINCT Origen 
+                        FROM dbo.Viajes 
+                        ORDER BY Origen ASC;";
+
+                    using var cmd = new SqlCommand(queryOrigenes, connection);
+                    using var reader = cmd.ExecuteReader();
+
+                    var listaOrigenes = new List<string>();
+                    while (reader.Read())
+                    {
+                        if (!reader.IsDBNull(0))
+                        {
+                            listaOrigenes.Add(reader.GetString(0));
+                        }
+                    }
+
+                    Application.Current.Dispatcher.Invoke(() =>
+                    {
+                        OrigenesDisponibles.Clear();
+                        foreach (var orig in listaOrigenes)
+                        {
+                            OrigenesDisponibles.Add(orig);
+                        }
+
+                        if (OrigenesDisponibles.Count > 0)
+                        {
+                            OrigenSeleccionado = OrigenesDisponibles.Contains("Lima") ? "Lima" : OrigenesDisponibles[0];
+                        }
+                    });
+                });
+
+                // 3. Ejecutar búsqueda inicial de viajes
+                Application.Current.Dispatcher.Invoke(() =>
+                {
+                    BuscarViajes();
+                });
+            }
+            catch (Exception ex)
+            {
+                Application.Current.Dispatcher.Invoke(() =>
+                {
+                    MessageBox.Show($"Error al cargar datos desde SQL Server:\n{ex.Message}",
+                                    "Error de Conexión BD",
+                                    MessageBoxButton.OK,
+                                    MessageBoxImage.Warning);
+                });
+            }
+        }
+
+        private void CargarDestinosPorOrigen(string? origen)
+        {
+            DestinosDisponibles.Clear();
+            if (string.IsNullOrWhiteSpace(origen))
+            {
+                DestinoSeleccionado = null;
+                return;
+            }
+
+            try
+            {
+                string connectionString = ObtenerCadenaConexion();
+                using var connection = new SqlConnection(connectionString);
+                connection.Open();
+
+                const string queryDestinos = @"
+                    SELECT DISTINCT Destino 
+                    FROM dbo.Viajes 
+                    WHERE Origen = @Origen 
+                    ORDER BY Destino ASC;";
+
+                using var cmd = new SqlCommand(queryDestinos, connection);
+                cmd.Parameters.Add("@Origen", SqlDbType.NVarChar, 50).Value = origen;
+
+                using var reader = cmd.ExecuteReader();
+                var listaDestinos = new List<string>();
+                while (reader.Read())
+                {
+                    if (!reader.IsDBNull(0))
+                    {
+                        listaDestinos.Add(reader.GetString(0));
+                    }
+                }
+
+                foreach (var d in listaDestinos)
+                {
+                    DestinosDisponibles.Add(d);
+                }
+
+                if (DestinosDisponibles.Count > 0)
+                {
+                    DestinoSeleccionado = DestinosDisponibles[0];
+                }
+                else
+                {
+                    DestinoSeleccionado = null;
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error al cargar destinos para {origen}: {ex.Message}");
+            }
         }
 
         private void BuscarViajes()
         {
             ViajesDisponibles.Clear();
-            string orig = string.IsNullOrWhiteSpace(OrigenSeleccionado) ? "Lima" : OrigenSeleccionado;
-            string dest = string.IsNullOrWhiteSpace(DestinoSeleccionado) ? "Huancayo" : DestinoSeleccionado;
+            ViajeSeleccionado = null;
+            MostrarMapaAsientos = false;
+            AsientosSeleccionados.Clear();
+            _todosLosAsientos.Clear();
+            FilasAsientosVisibles.Clear();
 
-            ViajesDisponibles.Add(new ViajeItemViewModel
+            string? origen = string.IsNullOrWhiteSpace(OrigenSeleccionado) ? null : OrigenSeleccionado;
+            string? destino = string.IsNullOrWhiteSpace(DestinoSeleccionado) ? null : DestinoSeleccionado;
+            DateTime fechaBase = FechaIda ?? DateTime.Today;
+
+            try
             {
-                ViajeID = 1,
-                Origen = orig,
-                Destino = dest,
-                BusPlaca = "ABC-123",
-                TipoServicio = "Servicio Directo",
-                Categoria = "VIP",
-                HoraSalidaTexto = "08:00 AM",
-                HoraLlegadaTexto = "03:30 PM",
-                Duracion = "07h 30m",
-                FechaHoraSalida = DateTime.Today.AddHours(8),
-                FechaHoraLlegada = DateTime.Today.AddHours(15).AddMinutes(30),
-                PrecioBase = 65.00m
-            });
+                string connectionString = ObtenerCadenaConexion();
+                using var connection = new SqlConnection(connectionString);
+                connection.Open();
 
-            ViajesDisponibles.Add(new ViajeItemViewModel
+                const string queryViajes = @"
+                    SELECT v.ViajeID, v.Origen, v.Destino, v.TipoServicio, v.FechaSalida, 
+                           v.FechaHoraLlegada, v.Categoria, v.DuracionEstimada, v.PrecioBase, b.Placa
+                    FROM dbo.Viajes v
+                    INNER JOIN dbo.Buses b ON v.BusID = b.BusID
+                    WHERE (@Origen IS NULL OR v.Origen = @Origen)
+                      AND (@Destino IS NULL OR v.Destino = @Destino)
+                    ORDER BY v.FechaSalida ASC;";
+
+                using var cmd = new SqlCommand(queryViajes, connection);
+                cmd.Parameters.Add("@Origen", SqlDbType.NVarChar, 50).Value = (object?)origen ?? DBNull.Value;
+                cmd.Parameters.Add("@Destino", SqlDbType.NVarChar, 50).Value = (object?)destino ?? DBNull.Value;
+
+                using var reader = cmd.ExecuteReader();
+                while (reader.Read())
+                {
+                    int viajeId = reader.GetInt32(0);
+                    string orig = reader.GetString(1);
+                    string dest = reader.GetString(2);
+                    string tipoServicio = reader.IsDBNull(3) ? "Directo" : reader.GetString(3);
+                    DateTime fechaSalidaDb = reader.GetDateTime(4);
+                    DateTime? fechaLlegadaDb = reader.IsDBNull(5) ? null : reader.GetDateTime(5);
+                    string categoria = reader.IsDBNull(6) ? "Clásico" : reader.GetString(6);
+                    string duracionEstimada = reader.IsDBNull(7) ? "" : reader.GetString(7);
+                    decimal precioBase = reader.GetDecimal(8);
+                    string placa = reader.GetString(9);
+
+                    DateTime fechaSalidaAjustada = new DateTime(
+                        fechaBase.Year, fechaBase.Month, fechaBase.Day,
+                        fechaSalidaDb.Hour, fechaSalidaDb.Minute, fechaSalidaDb.Second);
+
+                    TimeSpan duracionSpan = fechaLlegadaDb.HasValue
+                        ? (fechaLlegadaDb.Value - fechaSalidaDb)
+                        : TimeSpan.FromHours(7.5);
+
+                    DateTime fechaLlegadaAjustada = fechaSalidaAjustada.Add(duracionSpan);
+
+                    string horaSalidaTexto = fechaSalidaAjustada.ToString("hh:mm tt", CultureInfo.InvariantCulture).ToUpper();
+                    string horaLlegadaTexto = fechaLlegadaAjustada.ToString("hh:mm tt", CultureInfo.InvariantCulture).ToUpper();
+
+                    string duracion = string.IsNullOrWhiteSpace(duracionEstimada)
+                        ? $"{(int)duracionSpan.TotalHours:00}h {duracionSpan.Minutes:00}m"
+                        : duracionEstimada;
+
+                    ViajesDisponibles.Add(new ViajeItemViewModel
+                    {
+                        ViajeID = viajeId,
+                        Origen = orig,
+                        Destino = dest,
+                        BusPlaca = placa,
+                        TipoServicio = tipoServicio,
+                        Categoria = categoria,
+                        HoraSalidaTexto = horaSalidaTexto,
+                        HoraLlegadaTexto = horaLlegadaTexto,
+                        Duracion = duracion,
+                        FechaHoraSalida = fechaSalidaAjustada,
+                        FechaHoraLlegada = fechaLlegadaAjustada,
+                        PrecioBase = precioBase
+                    });
+                }
+
+                MostrarResultadosViajes = true;
+            }
+            catch (Exception ex)
             {
-                ViajeID = 2,
-                Origen = orig,
-                Destino = dest,
-                BusPlaca = "XYZ-789",
-                TipoServicio = "Servicio Ejecutivo",
-                Categoria = "Ejecutivo",
-                HoraSalidaTexto = "01:30 PM",
-                HoraLlegadaTexto = "09:00 PM",
-                Duracion = "07h 30m",
-                FechaHoraSalida = DateTime.Today.AddHours(13).AddMinutes(30),
-                FechaHoraLlegada = DateTime.Today.AddHours(21),
-                PrecioBase = 55.00m
-            });
-
-            ViajesDisponibles.Add(new ViajeItemViewModel
-            {
-                ViajeID = 3,
-                Origen = orig,
-                Destino = dest,
-                BusPlaca = "PER-456",
-                TipoServicio = "Servicio Premium",
-                Categoria = "Premium",
-                HoraSalidaTexto = "09:00 PM",
-                HoraLlegadaTexto = "04:30 AM",
-                Duracion = "07h 30m",
-                FechaHoraSalida = DateTime.Today.AddHours(21),
-                FechaHoraLlegada = DateTime.Today.AddDays(1).AddHours(4).AddMinutes(30),
-                PrecioBase = 80.00m
-            });
-
-            MostrarResultadosViajes = true;
+                MessageBox.Show($"Error al buscar viajes en la base de datos:\n{ex.Message}",
+                                "Error de Búsqueda",
+                                MessageBoxButton.OK,
+                                MessageBoxImage.Error);
+            }
         }
 
         private void LimpiarBusqueda()
         {
-            OrigenSeleccionado = null;
-            DestinoSeleccionado = null;
+            OrigenSeleccionado = OrigenesDisponibles.Count > 0 ? (OrigenesDisponibles.Contains("Lima") ? "Lima" : OrigenesDisponibles[0]) : null;
             ViajesDisponibles.Clear();
             ViajeSeleccionado = null;
             MostrarResultadosViajes = false;
             MostrarMapaAsientos = false;
             AsientosSeleccionados.Clear();
+            _todosLosAsientos.Clear();
             FilasAsientosVisibles.Clear();
-            MostrarPanelViajes = true;
-            MostrarPanelPasajeros = false;
-            MostrarPanelPago = false;
             CalcularLiquidacion();
         }
 
         private void IntercambiarCiudades()
         {
-            string? temp = OrigenSeleccionado;
-            OrigenSeleccionado = DestinoSeleccionado;
-            DestinoSeleccionado = temp;
+            string? tempOrig = OrigenSeleccionado;
+            string? tempDest = DestinoSeleccionado;
+
+            if (!string.IsNullOrWhiteSpace(tempDest) && OrigenesDisponibles.Contains(tempDest))
+            {
+                OrigenSeleccionado = tempDest;
+                if (!string.IsNullOrWhiteSpace(tempOrig) && DestinosDisponibles.Contains(tempOrig))
+                {
+                    DestinoSeleccionado = tempOrig;
+                }
+            }
         }
 
         private void OrdenarViajes<TKey>(Func<ViajeItemViewModel, TKey> keySelector)
@@ -549,35 +703,62 @@ namespace SistemaTransportes
             ViajeSeleccionado = viaje;
             MostrarMapaAsientos = true;
             AsientosSeleccionados.Clear();
-            CargarAsientos();
+
+            ConsultarAsientosDesdeBd(viaje.ViajeID);
         }
 
-        private void InicializarCroquisBase()
+        private void ConsultarAsientosDesdeBd(int viajeId)
         {
+            CargandoAsientos = true;
             _todosLosAsientos.Clear();
-            // Piso 1: 20 asientos
-            for (int i = 1; i <= 20; i++)
+
+            try
             {
-                var a = new AsientoItemViewModel
+                string connectionString = ObtenerCadenaConexion();
+                using var connection = new SqlConnection(connectionString);
+                connection.Open();
+
+                const string queryAsientos = @"
+                    SELECT a.NroAsiento, a.Piso, ISNULL(eav.Estado, 'Libre') AS Estado
+                    FROM dbo.Asientos a
+                    INNER JOIN dbo.Viajes v ON a.BusID = v.BusID
+                    LEFT JOIN dbo.EstadoAsientosViaje eav ON eav.ViajeID = v.ViajeID AND eav.NroAsiento = a.NroAsiento
+                    WHERE v.ViajeID = @ViajeID
+                    ORDER BY a.Piso ASC, a.NroAsiento ASC;";
+
+                using var cmd = new SqlCommand(queryAsientos, connection);
+                cmd.Parameters.Add("@ViajeID", SqlDbType.Int).Value = viajeId;
+
+                using var reader = cmd.ExecuteReader();
+                while (reader.Read())
                 {
-                    NroAsiento = i,
-                    Piso = 1,
-                    Estado = (i == 3 || i == 4 || i == 11 || i == 12) ? "Ocupado" : "Libre"
-                };
-                a.ClickCommand = new RelayCommand(() => ToggleAsiento(a));
-                _todosLosAsientos.Add(a);
+                    int nroAsiento = reader.GetInt32(0);
+                    int piso = reader.GetInt32(1);
+                    string estado = reader.GetString(2);
+
+                    var asientoItem = new AsientoItemViewModel
+                    {
+                        NroAsiento = nroAsiento,
+                        Piso = piso,
+                        Estado = estado
+                    };
+                    asientoItem.ClickCommand = new RelayCommand(() => ToggleAsiento(asientoItem));
+                    _todosLosAsientos.Add(asientoItem);
+                }
+
+                _pisoActual = 1;
+                CargarAsientos();
             }
-            // Piso 2: 28 asientos
-            for (int i = 21; i <= 48; i++)
+            catch (Exception ex)
             {
-                var a = new AsientoItemViewModel
-                {
-                    NroAsiento = i,
-                    Piso = 2,
-                    Estado = (i == 23 || i == 24 || i == 35 || i == 36 || i == 42) ? "Ocupado" : "Libre"
-                };
-                a.ClickCommand = new RelayCommand(() => ToggleAsiento(a));
-                _todosLosAsientos.Add(a);
+                MessageBox.Show($"Error al cargar croquis de asientos del bus:\n{ex.Message}",
+                                "Error de Asientos",
+                                MessageBoxButton.OK,
+                                MessageBoxImage.Error);
+            }
+            finally
+            {
+                CargandoAsientos = false;
             }
         }
 
@@ -632,75 +813,19 @@ namespace SistemaTransportes
 
         private void RefrescarMapa()
         {
-            CargarAsientos();
+            if (ViajeSeleccionado != null)
+            {
+                ConsultarAsientosDesdeBd(ViajeSeleccionado.ViajeID);
+            }
+            else
+            {
+                CargarAsientos();
+            }
         }
 
         private void IrAPasajeros()
         {
-            Pasajeros.Clear();
-            foreach (var a in AsientosSeleccionados)
-            {
-                Pasajeros.Add(new PasajeroItemViewModel
-                {
-                    NroAsiento = a.NroAsiento,
-                    Piso = a.Piso,
-                    Precio = ViajeSeleccionado?.PrecioBase ?? 0m
-                });
-            }
-
-            MostrarPanelViajes = false;
-            MostrarPanelPasajeros = true;
-            MostrarPanelPago = false;
-        }
-
-        private void VolverAViajes()
-        {
-            MostrarPanelViajes = true;
-            MostrarPanelPasajeros = false;
-            MostrarPanelPago = false;
-        }
-
-        private void IrAPago()
-        {
-            MostrarPanelViajes = false;
-            MostrarPanelPasajeros = false;
-            MostrarPanelPago = true;
-            CalcularLiquidacion();
-        }
-
-        private void VolverAPasajeros()
-        {
-            MostrarPanelViajes = false;
-            MostrarPanelPasajeros = true;
-            MostrarPanelPago = false;
-        }
-
-        private void ConfirmarVenta()
-        {
-            MessageBox.Show(
-                $"¡Venta registrada con éxito!\n\n" +
-                $"• Ruta: {ViajeSeleccionado?.RutaTexto}\n" +
-                $"• Total Boletos: S/. {TotalBoletos:N2}\n" +
-                $"• Total Liquidado: S/. {TotalVenta:N2}\n" +
-                $"• Método de Pago: {MetodoPagoSeleccionado}\n\n" +
-                $"Comprobante emitido correctamente.",
-                "Emisión Exitosa",
-                MessageBoxButton.OK,
-                MessageBoxImage.Information);
-
-            // Marcar asientos como ocupados
-            foreach (var a in AsientosSeleccionados)
-            {
-                a.Estado = "Ocupado";
-            }
-            AsientosSeleccionados.Clear();
-
-            // Retornar a la vista inicial
-            MostrarPanelViajes = true;
-            MostrarPanelPasajeros = false;
-            MostrarPanelPago = false;
-            MostrarMapaAsientos = false;
-            CalcularLiquidacion();
+            // En este hito de interfaz base, el botón no navega a ninguna otra vista
         }
 
         private void AplicarMontoRapido(string? valor)
