@@ -101,6 +101,27 @@ namespace SistemaTransportes
         public AsientoItemViewModel? AsientoVentanaDer { get; set; }
     }
 
+    public class PasajeroItemViewModel : ViewModelBase
+    {
+        public int NroAsiento { get; set; }
+        public int Piso { get; set; } = 1;
+        public decimal Precio { get; set; }
+
+        private string _dni = "";
+        public string Dni
+        {
+            get => _dni;
+            set => SetProperty(ref _dni, value);
+        }
+
+        private string _nombres = "";
+        public string Nombres
+        {
+            get => _nombres;
+            set => SetProperty(ref _nombres, value);
+        }
+    }
+
     public class PresetItemViewModel
     {
         public string Nombre { get; set; } = "";
@@ -195,9 +216,23 @@ namespace SistemaTransportes
             set => SetProperty(ref _mostrarMapaAsientos, value);
         }
 
-        public bool MostrarPanelViajes => true;
-        public bool MostrarPanelPasajeros => false;
+        private bool _mostrarPanelViajes = true;
+        public bool MostrarPanelViajes
+        {
+            get => _mostrarPanelViajes;
+            set => SetProperty(ref _mostrarPanelViajes, value);
+        }
+
+        private bool _mostrarPanelPasajeros;
+        public bool MostrarPanelPasajeros
+        {
+            get => _mostrarPanelPasajeros;
+            set => SetProperty(ref _mostrarPanelPasajeros, value);
+        }
+
         public bool MostrarPanelPago => false;
+
+        public ObservableCollection<PasajeroItemViewModel> Pasajeros { get; } = new();
 
         // --- Asientos y Croquis ---
         private int _pisoActual = 1;
@@ -294,10 +329,41 @@ namespace SistemaTransportes
             }
         }
 
-        public bool EsEntregaAgencia { get; set; } = true;
-        public bool EsEntregaDomicilio { get; set; }
-        public string ModalidadEntrega => EsEntregaDomicilio ? "Domicilio" : "Agencia";
-        public decimal RecargoDelivery => EsEntregaDomicilio ? 10.00m : 0.00m;
+        private string _modalidadEntrega = "Agencia";
+        public string ModalidadEntrega
+        {
+            get => _modalidadEntrega;
+            set
+            {
+                if (SetProperty(ref _modalidadEntrega, value))
+                {
+                    OnPropertyChanged(nameof(EsEntregaAgencia));
+                    OnPropertyChanged(nameof(EsEntregaDomicilio));
+                    OnPropertyChanged(nameof(RecargoDelivery));
+                    CalcularLiquidacion();
+                }
+            }
+        }
+
+        public bool EsEntregaAgencia
+        {
+            get => string.Equals(ModalidadEntrega, "Agencia", StringComparison.OrdinalIgnoreCase);
+            set
+            {
+                if (value) ModalidadEntrega = "Agencia";
+            }
+        }
+
+        public bool EsEntregaDomicilio
+        {
+            get => string.Equals(ModalidadEntrega, "Domicilio", StringComparison.OrdinalIgnoreCase);
+            set
+            {
+                if (value) ModalidadEntrega = "Domicilio";
+            }
+        }
+
+        public decimal RecargoDelivery => (EsSoloEncomienda && EsEntregaDomicilio) ? 10.00m : 0.00m;
 
         private decimal _encomiendaCosto;
         public decimal EncomiendaCosto
@@ -311,21 +377,46 @@ namespace SistemaTransportes
         public string EncomiendaDescripcion { get; set; } = "Paquete sellado";
         public bool EsCargaPersonalizada => false;
         public bool EsPesoMaximoEncomienda => false;
-        public string TerminalLlegadaDisplay => "Terminal Principal";
+        public string TerminalLlegadaDisplay => ViajeSeleccionado != null
+            ? $"Agencia Central {ViajeSeleccionado.Destino} — Terminal Terrestre"
+            : "Agencia Central de Destino — Terminal Terrestre";
         public string DireccionEntrega { get; set; } = "";
         public string ReferenciaEntrega { get; set; } = "";
 
         // Encomienda Remitente / Destinatario
         public ObservableCollection<string> TiposDocumentoDisponibles { get; } = new() { "DNI", "RUC", "C.E." };
-        public string RemitenteTipoDoc { get; set; } = "DNI";
+
+        private string _remitenteTipoDoc = "DNI";
+        public string RemitenteTipoDoc
+        {
+            get => _remitenteTipoDoc;
+            set
+            {
+                if (SetProperty(ref _remitenteTipoDoc, value))
+                {
+                    OnPropertyChanged(nameof(RemitenteDocMaxLength));
+                }
+            }
+        }
         public string RemitenteDoc { get; set; } = "";
-        public int RemitenteDocMaxLength => 8;
+        public int RemitenteDocMaxLength => RemitenteTipoDoc == "RUC" ? 11 : 8;
         public string RemitenteNombre { get; set; } = "";
         public string RemitenteTelefono { get; set; } = "";
 
-        public string DestinatarioTipoDoc { get; set; } = "DNI";
+        private string _destinatarioTipoDoc = "DNI";
+        public string DestinatarioTipoDoc
+        {
+            get => _destinatarioTipoDoc;
+            set
+            {
+                if (SetProperty(ref _destinatarioTipoDoc, value))
+                {
+                    OnPropertyChanged(nameof(DestinatarioDocMaxLength));
+                }
+            }
+        }
         public string DestinatarioDoc { get; set; } = "";
-        public int DestinatarioDocMaxLength => 8;
+        public int DestinatarioDocMaxLength => DestinatarioTipoDoc == "RUC" ? 11 : 8;
         public string DestinatarioNombre { get; set; } = "";
         public string DestinatarioTelefono { get; set; } = "";
 
@@ -336,6 +427,10 @@ namespace SistemaTransportes
 
         public bool PuedeContinuarAPasajeros => AsientosSeleccionados.Count > 0 || EsSoloEncomienda;
         public string TextoBotonContinuar => EsSoloEncomienda ? "Continuar a Guía de Encomienda ➔" : (AsientosSeleccionados.Count > 0 ? $"Continuar con {AsientosSeleccionados.Count} pasajero(s) ➔" : "Seleccione al menos 1 asiento");
+        public string TextoBotonVolverDePaso2 => "← Volver a Selección de Viaje";
+        public string TextoBotonContinuarAPago => EsSoloEncomienda
+            ? $"Continuar a Liquidación y Pago (S/. {TotalVenta:N2}) ➔"
+            : "Continuar al Pago ➔";
 
         // --- Pago ---
         private string _metodoPagoSeleccionado = "Efectivo";
@@ -391,6 +486,8 @@ namespace SistemaTransportes
         public ICommand SeleccionarViajeCommand { get; }
         public ICommand CambiarPisoCommand { get; }
         public ICommand IrAPasajerosCommand { get; }
+        public ICommand VolverAViajesCommand { get; }
+        public ICommand IrAPagoCommand { get; }
         public ICommand CerrarSesionCommand { get; }
         public ICommand RefrescarMapaCommand { get; }
         public ICommand MontoRapidoCommand { get; }
@@ -414,6 +511,8 @@ namespace SistemaTransportes
             SeleccionarViajeCommand = new RelayCommand<ViajeItemViewModel>(SeleccionarViaje);
             CambiarPisoCommand = new RelayCommand<object>(p => CambiarPiso(Convert.ToInt32(p)));
             IrAPasajerosCommand = new RelayCommand(IrAPasajeros, () => PuedeContinuarAPasajeros);
+            VolverAViajesCommand = new RelayCommand(VolverAViajes);
+            IrAPagoCommand = new RelayCommand(IrAPago);
             CerrarSesionCommand = new RelayCommand(CerrarSesion);
             RefrescarMapaCommand = new RelayCommand(RefrescarMapa);
             MontoRapidoCommand = new RelayCommand<string>(AplicarMontoRapido);
@@ -672,6 +771,9 @@ namespace SistemaTransportes
             AsientosSeleccionados.Clear();
             _todosLosAsientos.Clear();
             FilasAsientosVisibles.Clear();
+            Pasajeros.Clear();
+            MostrarPanelViajes = true;
+            MostrarPanelPasajeros = false;
             CalcularLiquidacion();
         }
 
@@ -825,7 +927,29 @@ namespace SistemaTransportes
 
         private void IrAPasajeros()
         {
-            // En este hito de interfaz base, el botón no navega a ninguna otra vista
+            Pasajeros.Clear();
+            foreach (var a in AsientosSeleccionados.OrderBy(x => x.NroAsiento))
+            {
+                Pasajeros.Add(new PasajeroItemViewModel
+                {
+                    NroAsiento = a.NroAsiento,
+                    Piso = a.Piso,
+                    Precio = ViajeSeleccionado?.PrecioBase ?? 0m
+                });
+            }
+            MostrarPanelViajes = false;
+            MostrarPanelPasajeros = true;
+        }
+
+        private void VolverAViajes()
+        {
+            MostrarPanelViajes = true;
+            MostrarPanelPasajeros = false;
+        }
+
+        private void IrAPago()
+        {
+            // En este hito de interfaz base, el botón no navega a ninguna otra vista (reservado para el commit de pagos)
         }
 
         private void AplicarMontoRapido(string? valor)
@@ -855,6 +979,7 @@ namespace SistemaTransportes
             OnPropertyChanged(nameof(DiferenciaFaltante));
             OnPropertyChanged(nameof(PuedeContinuarAPasajeros));
             OnPropertyChanged(nameof(TextoBotonContinuar));
+            OnPropertyChanged(nameof(TextoBotonContinuarAPago));
         }
 
         private void CerrarSesion()
