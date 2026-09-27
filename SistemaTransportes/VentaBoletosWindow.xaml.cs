@@ -137,6 +137,7 @@ namespace SistemaTransportes
         public string Origen { get; set; } = "Lima";
         public string Destino { get; set; } = "Huancayo";
         public string BusPlaca { get; set; } = "ABC-123";
+        public string PlacaBus => BusPlaca;
         public string TipoServicio { get; set; } = "Servicio Directo";
         public string Categoria { get; set; } = "VIP";
         public string HoraSalidaTexto { get; set; } = "08:00 AM";
@@ -230,7 +231,12 @@ namespace SistemaTransportes
             set => SetProperty(ref _mostrarPanelPasajeros, value);
         }
 
-        public bool MostrarPanelPago => false;
+        private bool _mostrarPanelPago;
+        public bool MostrarPanelPago
+        {
+            get => _mostrarPanelPago;
+            set => SetProperty(ref _mostrarPanelPago, value);
+        }
 
         public ObservableCollection<PasajeroItemViewModel> Pasajeros { get; } = new();
 
@@ -431,6 +437,13 @@ namespace SistemaTransportes
         public string TextoBotonContinuarAPago => EsSoloEncomienda
             ? $"Continuar a Liquidación y Pago (S/. {TotalVenta:N2}) ➔"
             : "Continuar al Pago ➔";
+        public string TextoBotonVolverDePago =>
+            EsSoloEncomienda ? "Volver a Guía de Despacho" : "Volver a Datos de Pasajeros";
+        public string TextoBotonConfirmarPago => EsSoloEncomienda
+            ? $"Confirmar Pago y Despachar Encomienda (S/. {TotalVenta:N2})"
+            : $"Confirmar Pago y Emitir Boletos (S/. {TotalVenta:N2})";
+        public string TextoBotonFooterConfirmar =>
+            EsSoloEncomienda ? "✓ CONFIRMAR Y DESPACHAR" : "✓ CONFIRMAR PAGO Y EMITIR";
 
         // --- Pago ---
         private string _metodoPagoSeleccionado = "Efectivo";
@@ -488,6 +501,9 @@ namespace SistemaTransportes
         public ICommand IrAPasajerosCommand { get; }
         public ICommand VolverAViajesCommand { get; }
         public ICommand IrAPagoCommand { get; }
+        public ICommand VolverAPasajerosCommand { get; }
+        public ICommand ConfirmarVentaFinalCommand { get; }
+        public ICommand ConfirmarVentaCommand => ConfirmarVentaFinalCommand;
         public ICommand CerrarSesionCommand { get; }
         public ICommand RefrescarMapaCommand { get; }
         public ICommand MontoRapidoCommand { get; }
@@ -513,6 +529,8 @@ namespace SistemaTransportes
             IrAPasajerosCommand = new RelayCommand(IrAPasajeros, () => PuedeContinuarAPasajeros);
             VolverAViajesCommand = new RelayCommand(VolverAViajes);
             IrAPagoCommand = new RelayCommand(IrAPago);
+            VolverAPasajerosCommand = new RelayCommand(VolverAPasajeros);
+            ConfirmarVentaFinalCommand = new RelayCommand(ConfirmarVenta);
             CerrarSesionCommand = new RelayCommand(CerrarSesion);
             RefrescarMapaCommand = new RelayCommand(RefrescarMapa);
             MontoRapidoCommand = new RelayCommand<string>(AplicarMontoRapido);
@@ -774,6 +792,10 @@ namespace SistemaTransportes
             Pasajeros.Clear();
             MostrarPanelViajes = true;
             MostrarPanelPasajeros = false;
+            MostrarPanelPago = false;
+            MetodoPagoSeleccionado = "Efectivo";
+            MontoRecibido = 0m;
+            NroOperacion = "";
             CalcularLiquidacion();
         }
 
@@ -939,17 +961,108 @@ namespace SistemaTransportes
             }
             MostrarPanelViajes = false;
             MostrarPanelPasajeros = true;
+            MostrarPanelPago = false;
         }
 
         private void VolverAViajes()
         {
             MostrarPanelViajes = true;
             MostrarPanelPasajeros = false;
+            MostrarPanelPago = false;
         }
 
         private void IrAPago()
         {
-            // En este hito de interfaz base, el botón no navega a ninguna otra vista (reservado para el commit de pagos)
+            if (!EsSoloEncomienda)
+            {
+                if (AsientosSeleccionados.Count == 0)
+                {
+                    MessageBox.Show("Debe seleccionar al menos 1 asiento para continuar.", "Validación", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+
+                foreach (var pas in Pasajeros)
+                {
+                    if (string.IsNullOrWhiteSpace(pas.Dni) || pas.Dni.Trim().Length < 8)
+                    {
+                        MessageBox.Show($"Ingrese un DNI válido de 8 dígitos para el Asiento N° {pas.NroAsiento}.", "Datos Incompletos", MessageBoxButton.OK, MessageBoxImage.Warning);
+                        return;
+                    }
+
+                    if (string.IsNullOrWhiteSpace(pas.Nombres) || pas.Nombres.Trim().Length < 3)
+                    {
+                        MessageBox.Show($"Ingrese los nombres completos para el Asiento N° {pas.NroAsiento}.", "Datos Incompletos", MessageBoxButton.OK, MessageBoxImage.Warning);
+                        return;
+                    }
+                }
+            }
+            else
+            {
+                if (ViajeSeleccionado == null)
+                {
+                    MessageBox.Show("Seleccione un viaje para la encomienda.", "Validación", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+
+                if (string.IsNullOrWhiteSpace(RemitenteDoc) || string.IsNullOrWhiteSpace(RemitenteNombre))
+                {
+                    MessageBox.Show("Ingrese los datos del remitente.", "Datos Incompletos", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+
+                if (string.IsNullOrWhiteSpace(DestinatarioDoc) || string.IsNullOrWhiteSpace(DestinatarioNombre))
+                {
+                    MessageBox.Show("Ingrese los datos del destinatario.", "Datos Incompletos", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+
+                if (EsEntregaDomicilio && string.IsNullOrWhiteSpace(DireccionEntrega))
+                {
+                    MessageBox.Show("Ingrese la dirección de entrega a domicilio.", "Datos Incompletos", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+            }
+
+            MostrarPanelViajes = false;
+            MostrarPanelPasajeros = false;
+            MostrarPanelPago = true;
+            MontoRecibido = TotalVenta;
+            CalcularLiquidacion();
+        }
+
+        private void VolverAPasajeros()
+        {
+            MostrarPanelPago = false;
+            MostrarPanelPasajeros = true;
+            MostrarPanelViajes = false;
+        }
+
+        private void ConfirmarVenta()
+        {
+            if (EsPagoEfectivo && FaltaDinero)
+            {
+                MessageBox.Show($"El monto recibido es insuficiente para completar la venta. Faltan S/. {DiferenciaFaltante:N2}.", "Pago Insuficiente", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            string detallePago = EsPagoEfectivo
+                ? $"Método de Pago: Efectivo (Entregado: S/. {MontoRecibido:N2} | Vuelto: S/. {Vuelto:N2})"
+                : $"Método de Pago: {MetodoPagoSeleccionado}" + (string.IsNullOrWhiteSpace(NroOperacion) ? "" : $" (Ref: {NroOperacion.Trim()})");
+
+            string mensaje;
+            if (EsSoloEncomienda)
+            {
+                string modalidad = EsEntregaDomicilio ? "Entrega a Domicilio (+S/. 10.00)" : "Recojo en Agencia";
+                mensaje = $"¡DESPACHO DE ENCOMIENDA CONFIRMADO CON ÉXITO!\n\nModalidad: {modalidad}\nTotal Pagado: S/. {TotalVenta:N2}\n{detallePago}";
+            }
+            else
+            {
+                string asientos = string.Join("\n", Pasajeros.Select(p => $"• Asiento #{p.NroAsiento} (Piso {p.Piso}): {p.Nombres} - DNI: {p.Dni} (S/. {p.Precio:N2})"));
+                mensaje = $"¡VENTA CONFIRMADA CON ÉXITO!\n\nBoletos Emitidos:\n{asientos}\n\nTotal Pagado: S/. {TotalVenta:N2}\n{detallePago}";
+            }
+
+            MessageBox.Show(mensaje, "Emisión Exitosa", MessageBoxButton.OK, MessageBoxImage.Information);
+            LimpiarBusqueda();
         }
 
         private void AplicarMontoRapido(string? valor)
@@ -980,6 +1093,9 @@ namespace SistemaTransportes
             OnPropertyChanged(nameof(PuedeContinuarAPasajeros));
             OnPropertyChanged(nameof(TextoBotonContinuar));
             OnPropertyChanged(nameof(TextoBotonContinuarAPago));
+            OnPropertyChanged(nameof(TextoBotonConfirmarPago));
+            OnPropertyChanged(nameof(TextoBotonFooterConfirmar));
+            OnPropertyChanged(nameof(TextoBotonVolverDePago));
         }
 
         private void CerrarSesion()

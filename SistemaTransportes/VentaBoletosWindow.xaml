@@ -1455,6 +1455,424 @@
                                 </StackPanel>
                             </Border>
                         </StackPanel>
+
+                        <!-- ================================================================= -->
+                        <!-- PASO 3: CONFIRMACIÓN DE COMPRA Y MÉTODO DE PAGO (MostrarPanelPago) -->
+                        <!-- ================================================================= -->
+                        <StackPanel Visibility="{Binding MostrarPanelPago, Converter={StaticResource BoolToVisConverter}}">
+                            <!-- Barra Superior de Navegación y Resumen del Viaje -->
+                            <Border Background="#F8FAFC" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1"
+                                    CornerRadius="10" Padding="14,10" Margin="0,0,0,14">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+
+                                    <!-- Botón Volver al Paso 2 -->
+                                    <Button Grid.Column="0"
+                                            Command="{Binding VolverAPasajerosCommand}"
+                                            Cursor="Hand" Margin="0,0,12,0" VerticalAlignment="Center">
+                                        <Button.Style>
+                                            <Style TargetType="Button">
+                                                <Setter Property="Background" Value="#EDF2F7" />
+                                                <Setter Property="Foreground" Value="{StaticResource PrimaryBrush}" />
+                                                <Setter Property="FontFamily" Value="Segoe UI" />
+                                                <Setter Property="FontWeight" Value="SemiBold" />
+                                                <Setter Property="FontSize" Value="12" />
+                                                <Setter Property="Padding" Value="12,6" />
+                                                <Setter Property="BorderThickness" Value="0" />
+                                                <Setter Property="Template">
+                                                    <Setter.Value>
+                                                        <ControlTemplate TargetType="Button">
+                                                            <Border x:Name="b" Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                            </Border>
+                                                            <ControlTemplate.Triggers>
+                                                                <Trigger Property="IsMouseOver" Value="True">
+                                                                    <Setter TargetName="b" Property="Background" Value="#E2E8F0" />
+                                                                </Trigger>
+                                                            </ControlTemplate.Triggers>
+                                                        </ControlTemplate>
+                                                    </Setter.Value>
+                                                </Setter>
+                                            </Style>
+                                        </Button.Style>
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="← " FontWeight="Bold" />
+                                            <TextBlock Text="{Binding TextoBotonVolverDePago}" />
+                                        </StackPanel>
+                                    </Button>
+
+                                    <!-- Resumen del Viaje en Píldoras -->
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                        <Border Background="{StaticResource TealLightBrush}" CornerRadius="4" Padding="8,3" Margin="0,0,6,0">
+                                            <TextBlock Text="{Binding ViajeSeleccionado.SalidaCompletaTexto}"
+                                                       FontFamily="Segoe UI" FontWeight="SemiBold" FontSize="11" Foreground="{StaticResource TealBrush}" />
+                                        </Border>
+                                        <ContentControl DataContext="{Binding ViajeSeleccionado}" Style="{StaticResource CategoriaBadgeControlStyle}"
+                                                        Visibility="{Binding DataContext.EsModoPasajeConEquipaje, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisConverter}}" />
+                                        <Border Visibility="{Binding DataContext.EsSoloEncomienda, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisConverter}}"
+                                                Background="#EFF6FF" BorderBrush="#93C5FD" BorderThickness="1" CornerRadius="12" Padding="10,3" VerticalAlignment="Center">
+                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                <fa:IconImage Icon="BoxOpen" Width="12" Height="12" Foreground="#1E40AF" Margin="0,0,5,0" VerticalAlignment="Center" />
+                                                <TextBlock Text="Carga en Bodega" FontFamily="Segoe UI" FontWeight="Bold" FontSize="11" Foreground="#1E40AF" VerticalAlignment="Center" />
+                                            </StackPanel>
+                                        </Border>
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+
+                            <!-- Tarjeta Contenedora de Pago y Confirmación -->
+                            <Border Background="#FFFFFF" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1"
+                                    CornerRadius="10" Padding="18,16" Margin="0,0,0,14">
+                                <Border.Effect>
+                                    <DropShadowEffect BlurRadius="10" Opacity="0.06" Direction="270" ShadowDepth="2" Color="#000000" />
+                                </Border.Effect>
+                                <StackPanel>
+                                    <!-- Encabezado de la Sección -->
+                                    <Grid Margin="0,0,0,16">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+
+                                        <StackPanel Grid.Column="0">
+                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                <TextBlock Text="💳 Confirmación de Compra y Método de Pago"
+                                                           FontFamily="Segoe UI" FontWeight="Bold" FontSize="16"
+                                                           Foreground="{StaticResource PrimaryBrush}" VerticalAlignment="Center" Margin="0,0,8,0" />
+                                                <Border Background="#DBEAFE" CornerRadius="10" Padding="8,2" VerticalAlignment="Center">
+                                                    <TextBlock Text="Paso 3 de 3" FontFamily="Segoe UI" FontWeight="Bold" FontSize="10.5" Foreground="#1E40AF" />
+                                                </Border>
+                                            </StackPanel>
+                                            <TextBlock Text="Seleccione el método de pago, registre el importe recibido y confirme la emisión de los boletos."
+                                                       FontFamily="Segoe UI" FontSize="11.5" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,4,0,0" />
+                                        </StackPanel>
+
+                                        <!-- Badge Total a Pagar -->
+                                        <Border Grid.Column="1" Background="{StaticResource ContrastOrangeBrush}" CornerRadius="6" Padding="12,5" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding TotalVenta, Converter={StaticResource CurrencyConverter}, StringFormat='Total: {0}'}"
+                                                       FontFamily="Segoe UI" FontWeight="Bold" FontSize="13.5" Foreground="White" />
+                                        </Border>
+                                    </Grid>
+
+                                    <!-- Grid de 2 Columnas: Panel de Pago (Izq) y Resumen del Viaje (Der) -->
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="1.1*" />
+                                            <ColumnDefinition Width="18" />
+                                            <ColumnDefinition Width="0.9*" />
+                                        </Grid.ColumnDefinitions>
+
+                                        <!-- COLUMNA IZQUIERDA: Selector de Método de Pago y Liquidación -->
+                                        <StackPanel Grid.Column="0">
+                                            <TextBlock Text="Seleccione el Método de Pago:"
+                                                       FontFamily="Segoe UI" FontWeight="Bold" FontSize="13"
+                                                       Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,10" />
+
+                                            <!-- RadioButtons estilizados como Tarjetas -->
+                                            <UniformGrid Columns="3" Margin="0,0,0,16">
+                                                <!-- Efectivo -->
+                                                <RadioButton GroupName="MetodoPago"
+                                                             IsChecked="{Binding MetodoPagoSeleccionado, Converter={StaticResource StringEqualsConverter}, ConverterParameter=Efectivo, Mode=TwoWay}"
+                                                             Cursor="Hand" Margin="0,0,4,0">
+                                                    <RadioButton.Template>
+                                                        <ControlTemplate TargetType="RadioButton">
+                                                            <Border x:Name="bd" Background="#F8FAFC" BorderBrush="#CBD5E0" BorderThickness="1.5"
+                                                                    CornerRadius="8" Padding="8,10">
+                                                                <StackPanel HorizontalAlignment="Center">
+                                                                    <fa:IconImage Icon="MoneyBill1" Width="22" Height="22" Foreground="#0E7074" HorizontalAlignment="Center" Margin="0,0,0,4" />
+                                                                    <TextBlock Text="Efectivo" FontFamily="Segoe UI" FontWeight="Bold" FontSize="12"
+                                                                               Foreground="{StaticResource PrimaryBrush}" HorizontalAlignment="Center" />
+                                                                </StackPanel>
+                                                            </Border>
+                                                            <ControlTemplate.Triggers>
+                                                                <Trigger Property="IsChecked" Value="True">
+                                                                    <Setter TargetName="bd" Property="Background" Value="#E0F2F1" />
+                                                                    <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource TealBrush}" />
+                                                                    <Setter TargetName="bd" Property="BorderThickness" Value="2" />
+                                                                </Trigger>
+                                                                <Trigger Property="IsMouseOver" Value="True">
+                                                                    <Setter TargetName="bd" Property="Background" Value="#F1F5F9" />
+                                                                </Trigger>
+                                                            </ControlTemplate.Triggers>
+                                                        </ControlTemplate>
+                                                    </RadioButton.Template>
+                                                </RadioButton>
+
+                                                <!-- Yape / Plin -->
+                                                <RadioButton GroupName="MetodoPago"
+                                                             IsChecked="{Binding MetodoPagoSeleccionado, Converter={StaticResource StringEqualsConverter}, ConverterParameter='Yape / Plin', Mode=TwoWay}"
+                                                             Cursor="Hand" Margin="2,0,2,0">
+                                                    <RadioButton.Template>
+                                                        <ControlTemplate TargetType="RadioButton">
+                                                            <Border x:Name="bd" Background="#F8FAFC" BorderBrush="#CBD5E0" BorderThickness="1.5"
+                                                                    CornerRadius="8" Padding="8,10">
+                                                                <StackPanel HorizontalAlignment="Center">
+                                                                    <fa:IconImage Icon="MobileScreen" Width="22" Height="22" Foreground="#7C3AED" HorizontalAlignment="Center" Margin="0,0,0,4" />
+                                                                    <TextBlock Text="Yape / Plin" FontFamily="Segoe UI" FontWeight="Bold" FontSize="12"
+                                                                               Foreground="{StaticResource PrimaryBrush}" HorizontalAlignment="Center" />
+                                                                </StackPanel>
+                                                            </Border>
+                                                            <ControlTemplate.Triggers>
+                                                                <Trigger Property="IsChecked" Value="True">
+                                                                    <Setter TargetName="bd" Property="Background" Value="#EDE9FE" />
+                                                                    <Setter TargetName="bd" Property="BorderBrush" Value="#7C3AED" />
+                                                                    <Setter TargetName="bd" Property="BorderThickness" Value="2" />
+                                                                </Trigger>
+                                                                <Trigger Property="IsMouseOver" Value="True">
+                                                                    <Setter TargetName="bd" Property="Background" Value="#F1F5F9" />
+                                                                </Trigger>
+                                                            </ControlTemplate.Triggers>
+                                                        </ControlTemplate>
+                                                    </RadioButton.Template>
+                                                </RadioButton>
+
+                                                <!-- Tarjeta -->
+                                                <RadioButton GroupName="MetodoPago"
+                                                             IsChecked="{Binding MetodoPagoSeleccionado, Converter={StaticResource StringEqualsConverter}, ConverterParameter=Tarjeta, Mode=TwoWay}"
+                                                             Cursor="Hand" Margin="4,0,0,0">
+                                                    <RadioButton.Template>
+                                                        <ControlTemplate TargetType="RadioButton">
+                                                            <Border x:Name="bd" Background="#F8FAFC" BorderBrush="#CBD5E0" BorderThickness="1.5"
+                                                                    CornerRadius="8" Padding="8,10">
+                                                                <StackPanel HorizontalAlignment="Center">
+                                                                    <fa:IconImage Icon="CreditCard" Width="22" Height="22" Foreground="#0284C7" HorizontalAlignment="Center" Margin="0,0,0,4" />
+                                                                    <TextBlock Text="Tarjeta" FontFamily="Segoe UI" FontWeight="Bold" FontSize="12"
+                                                                               Foreground="{StaticResource PrimaryBrush}" HorizontalAlignment="Center" />
+                                                                </StackPanel>
+                                                            </Border>
+                                                            <ControlTemplate.Triggers>
+                                                                <Trigger Property="IsChecked" Value="True">
+                                                                    <Setter TargetName="bd" Property="Background" Value="#E0F2FE" />
+                                                                    <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource PrimaryAccentBrush}" />
+                                                                    <Setter TargetName="bd" Property="BorderThickness" Value="2" />
+                                                                </Trigger>
+                                                                <Trigger Property="IsMouseOver" Value="True">
+                                                                    <Setter TargetName="bd" Property="Background" Value="#F1F5F9" />
+                                                                </Trigger>
+                                                            </ControlTemplate.Triggers>
+                                                        </ControlTemplate>
+                                                    </RadioButton.Template>
+                                                </RadioButton>
+                                            </UniformGrid>
+
+                                            <!-- Opciones específicas de Efectivo -->
+                                            <StackPanel Visibility="{Binding EsPagoEfectivo, Converter={StaticResource BoolToVisConverter}}">
+                                                <TextBlock Text="Monto Recibido en Efectivo (S/.):"
+                                                           FontFamily="Segoe UI" FontWeight="SemiBold" FontSize="12"
+                                                           Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,4" />
+                                                <TextBox Text="{Binding MontoRecibido, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource DecimalConverter}}"
+                                                         Style="{StaticResource ModernTextBoxStyle}"
+                                                         FontSize="16" FontWeight="Bold" Foreground="{StaticResource PrimaryBrush}"
+                                                         Margin="0,0,0,8" />
+
+                                                <!-- Botones de Monto Rápido -->
+                                                <WrapPanel Margin="0,0,0,14">
+                                                    <Button Content="[Exacto]" Command="{Binding MontoRapidoCommand}" CommandParameter="Exacto"
+                                                            Background="#EDF2F7" Foreground="{StaticResource PrimaryBrush}"
+                                                            FontFamily="Segoe UI" FontWeight="Bold" FontSize="11.5"
+                                                            Padding="8,5" Margin="0,0,6,6" Cursor="Hand" BorderThickness="0" />
+                                                    <Button Content="+S/. 10" Command="{Binding MontoRapidoCommand}" CommandParameter="+10"
+                                                            Background="#EDF2F7" Foreground="{StaticResource PrimaryBrush}"
+                                                            FontFamily="Segoe UI" FontWeight="SemiBold" FontSize="11.5"
+                                                            Padding="8,5" Margin="0,0,6,6" Cursor="Hand" BorderThickness="0" />
+                                                    <Button Content="+S/. 20" Command="{Binding MontoRapidoCommand}" CommandParameter="+20"
+                                                            Background="#EDF2F7" Foreground="{StaticResource PrimaryBrush}"
+                                                            FontFamily="Segoe UI" FontWeight="SemiBold" FontSize="11.5"
+                                                            Padding="8,5" Margin="0,0,6,6" Cursor="Hand" BorderThickness="0" />
+                                                    <Button Content="+S/. 50" Command="{Binding MontoRapidoCommand}" CommandParameter="+50"
+                                                            Background="#EDF2F7" Foreground="{StaticResource PrimaryBrush}"
+                                                            FontFamily="Segoe UI" FontWeight="SemiBold" FontSize="11.5"
+                                                            Padding="8,5" Margin="0,0,6,6" Cursor="Hand" BorderThickness="0" />
+                                                    <Button Content="S/. 100" Command="{Binding MontoRapidoCommand}" CommandParameter="100"
+                                                            Background="#EDF2F7" Foreground="{StaticResource PrimaryBrush}"
+                                                            FontFamily="Segoe UI" FontWeight="SemiBold" FontSize="11.5"
+                                                            Padding="8,5" Margin="0,0,6,6" Cursor="Hand" BorderThickness="0" />
+                                                </WrapPanel>
+
+                                                <!-- Indicador Destacado de Vuelto o Advertencia de Falta Dinero -->
+                                                <Border Background="#FDF2F2" BorderBrush="#F87171" BorderThickness="1.5" CornerRadius="8" Padding="12,10"
+                                                        Margin="0,0,0,10"
+                                                        Visibility="{Binding FaltaDinero, Converter={StaticResource BoolToVisConverter}}">
+                                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                        <TextBlock Text="⚠️ " FontSize="16" Foreground="#DC2626" VerticalAlignment="Center" />
+                                                        <TextBlock Text="{Binding DiferenciaFaltante, StringFormat='Monto insuficiente: Faltan S/. {0:N2}'}"
+                                                                   FontFamily="Segoe UI" FontWeight="Bold" FontSize="12.5" Foreground="#B91C1C" VerticalAlignment="Center" />
+                                                    </StackPanel>
+                                                </Border>
+
+                                                <Border Background="#DEF7EC" BorderBrush="#31C48D" BorderThickness="1.5" CornerRadius="8" Padding="12,10"
+                                                        Margin="0,0,0,10"
+                                                        Visibility="{Binding FaltaDinero, Converter={StaticResource InverseBoolToVisConverter}}">
+                                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                        <TextBlock Text="✓ " FontSize="16" FontWeight="Bold" Foreground="#03543F" VerticalAlignment="Center" />
+                                                        <TextBlock Text="Vuelto a entregar: " FontFamily="Segoe UI" FontWeight="SemiBold" FontSize="12.5" Foreground="#03543F" VerticalAlignment="Center" />
+                                                        <TextBlock Text="{Binding Vuelto, Converter={StaticResource CurrencyConverter}}"
+                                                                   FontFamily="Segoe UI" FontWeight="Bold" FontSize="15" Foreground="#03543F" VerticalAlignment="Center" />
+                                                    </StackPanel>
+                                                </Border>
+                                            </StackPanel>
+
+                                            <!-- Opciones específicas de Pago Digital (Yape / Plin o Tarjeta) -->
+                                            <StackPanel Visibility="{Binding EsPagoDigital, Converter={StaticResource BoolToVisConverter}}">
+                                                <TextBlock Text="N° de Operación / Referencia (Opcional):"
+                                                           FontFamily="Segoe UI" FontWeight="SemiBold" FontSize="12"
+                                                           Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,4" />
+                                                <TextBox Text="{Binding NroOperacion, UpdateSourceTrigger=PropertyChanged}"
+                                                         MaxLength="{Binding MaxLongitudOperacion}"
+                                                         PreviewTextInput="NumeroOperacion_PreviewTextInput"
+                                                         DataObject.Pasting="NumeroOperacion_Pasting"
+                                                         Style="{StaticResource ModernTextBoxStyle}"
+                                                         FontSize="13.5" Margin="0,0,0,10" />
+                                                <Border Background="#EFF6FF" BorderBrush="#BFDBFE" BorderThickness="1" CornerRadius="6" Padding="10,8" Margin="0,0,0,10">
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <TextBlock Text="ℹ️ " FontSize="13" Foreground="#2563EB" VerticalAlignment="Center" />
+                                                        <TextBlock Text="Confirmación digital inmediata. Verifique la acreditación en la cuenta bancaria antes de confirmar."
+                                                                   FontFamily="Segoe UI" FontSize="11" Foreground="#1E40AF" TextWrapping="Wrap" VerticalAlignment="Center" />
+                                                    </StackPanel>
+                                                </Border>
+                                            </StackPanel>
+                                        </StackPanel>
+
+                                        <!-- COLUMNA DERECHA: Resumen Consolidado del Viaje y Pasajeros -->
+                                        <Border Grid.Column="2" Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1"
+                                                CornerRadius="8" Padding="14,12">
+                                            <StackPanel>
+                                                <TextBlock Text="📋 Resumen de la Venta"
+                                                           FontFamily="Segoe UI" FontWeight="Bold" FontSize="13"
+                                                           Foreground="{StaticResource PrimaryBrush}" Margin="0,0,0,10" />
+
+                                                <!-- Detalle del Viaje -->
+                                                <Border Background="White" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="6" Padding="10,8" Margin="0,0,0,10">
+                                                    <StackPanel>
+                                                        <TextBlock Text="{Binding ViajeSeleccionado.RutaTexto}"
+                                                                   FontFamily="Segoe UI" FontWeight="Bold" FontSize="12.5" Foreground="{StaticResource PrimaryBrush}" />
+                                                        <TextBlock Text="{Binding ViajeSeleccionado.SalidaCompletaTexto}"
+                                                                   FontFamily="Segoe UI" FontSize="11.5" Foreground="{StaticResource TealBrush}" FontWeight="SemiBold" Margin="0,2,0,0" />
+                                                        <TextBlock Text="{Binding ViajeSeleccionado.Categoria, StringFormat='Servicio: {0}'}"
+                                                                   Visibility="{Binding EsModoPasajeConEquipaje, Converter={StaticResource BoolToVisConverter}}"
+                                                                   FontFamily="Segoe UI" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,2,0,0" />
+                                                        <TextBlock Text="Servicio: 📦 Carga en Bodega"
+                                                                   Visibility="{Binding EsSoloEncomienda, Converter={StaticResource BoolToVisConverter}}"
+                                                                   FontFamily="Segoe UI" FontSize="11" Foreground="#1E40AF" FontWeight="SemiBold" Margin="0,2,0,0" />
+                                                        <TextBlock Text="{Binding ViajeSeleccionado.PlacaBus, StringFormat='Bus Placa: {0}'}"
+                                                                   FontFamily="Segoe UI" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,1,0,0" />
+                                                    </StackPanel>
+                                                </Border>
+
+                                                <!-- Lista Compacta de Pasajeros y Asientos (Modo Pasaje con Equipaje) -->
+                                                <StackPanel Visibility="{Binding EsModoPasajeConEquipaje, Converter={StaticResource BoolToVisConverter}}">
+                                                    <TextBlock Text="Pasajeros y Asientos Asignados:"
+                                                               FontFamily="Segoe UI" FontWeight="SemiBold" FontSize="11.5"
+                                                               Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,6" />
+                                                    <ItemsControl ItemsSource="{Binding Pasajeros}">
+                                                        <ItemsControl.ItemTemplate>
+                                                            <DataTemplate>
+                                                                <Grid Margin="0,0,0,6">
+                                                                    <Grid.ColumnDefinitions>
+                                                                        <ColumnDefinition Width="*" />
+                                                                        <ColumnDefinition Width="Auto" />
+                                                                    </Grid.ColumnDefinitions>
+                                                                    <StackPanel Grid.Column="0">
+                                                                        <StackPanel Orientation="Horizontal">
+                                                                            <TextBlock Text="{Binding NroAsiento, StringFormat='Asiento #{0}'}"
+                                                                                       FontFamily="Segoe UI" FontWeight="Bold" FontSize="11.5" Foreground="{StaticResource PrimaryBrush}" />
+                                                                            <TextBlock Text="{Binding Piso, StringFormat=' (Piso {0})'}"
+                                                                                       FontFamily="Segoe UI" FontSize="10.5" Foreground="{StaticResource TextSecondaryBrush}" />
+                                                                        </StackPanel>
+                                                                        <TextBlock Text="{Binding Nombres}"
+                                                                                   FontFamily="Segoe UI" FontWeight="SemiBold" FontSize="11" Foreground="#334155" TextTrimming="CharacterEllipsis" />
+                                                                        <TextBlock Text="{Binding Dni, StringFormat='DNI: {0}'}"
+                                                                                   FontFamily="Segoe UI" FontSize="10" Foreground="{StaticResource TextSecondaryBrush}" />
+                                                                    </StackPanel>
+                                                                    <TextBlock Grid.Column="1" Text="{Binding Precio, Converter={StaticResource CurrencyConverter}}"
+                                                                               FontFamily="Segoe UI" FontWeight="Bold" FontSize="11.5" Foreground="{StaticResource TealBrush}"
+                                                                               VerticalAlignment="Center" />
+                                                                </Grid>
+                                                            </DataTemplate>
+                                                        </ItemsControl.ItemTemplate>
+                                                    </ItemsControl>
+                                                </StackPanel>
+
+                                                <!-- Detalle de Carga / Encomienda Directa (Modo Solo Encomienda) -->
+                                                <Border Background="#EFF6FF" BorderBrush="#BFDBFE" BorderThickness="1" CornerRadius="6" Padding="10,8" Margin="0,0,0,10"
+                                                        Visibility="{Binding EsSoloEncomienda, Converter={StaticResource BoolToVisConverter}}">
+                                                    <StackPanel>
+                                                        <TextBlock Text="📦 Despacho de Encomienda en Bodega" FontFamily="Segoe UI" FontWeight="Bold" FontSize="11.5" Foreground="#1E40AF" />
+                                                        <TextBlock Text="Carga directa en bodega del bus." FontFamily="Segoe UI" FontSize="10.5" Foreground="#3B82F6" Margin="0,2,0,6" />
+
+                                                        <TextBlock Text="Remitente:" FontFamily="Segoe UI" FontWeight="Bold" FontSize="10.5" Foreground="{StaticResource PrimaryBrush}" />
+                                                        <TextBlock Text="{Binding RemitenteNombre}" FontFamily="Segoe UI" FontWeight="SemiBold" FontSize="11" Foreground="#334155" TextTrimming="CharacterEllipsis" />
+                                                        <TextBlock FontFamily="Segoe UI" FontSize="10" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,4">
+                                                            <Run Text="{Binding RemitenteTipoDoc}" />: <Run Text="{Binding RemitenteDoc}" /> • Cel: <Run Text="{Binding RemitenteTelefono}" />
+                                                        </TextBlock>
+
+                                                        <TextBlock Text="Destinatario:" FontFamily="Segoe UI" FontWeight="Bold" FontSize="10.5" Foreground="{StaticResource PrimaryBrush}" />
+                                                        <TextBlock Text="{Binding DestinatarioNombre}" FontFamily="Segoe UI" FontWeight="SemiBold" FontSize="11" Foreground="#334155" TextTrimming="CharacterEllipsis" />
+                                                        <TextBlock FontFamily="Segoe UI" FontSize="10" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,4">
+                                                            <Run Text="{Binding DestinatarioTipoDoc}" />: <Run Text="{Binding DestinatarioDoc}" /> • Cel: <Run Text="{Binding DestinatarioTelefono}" />
+                                                        </TextBlock>
+
+                                                        <TextBlock Text="Entrega:" FontFamily="Segoe UI" FontWeight="Bold" FontSize="10.5" Foreground="{StaticResource PrimaryBrush}" />
+                                                        <TextBlock Text="{Binding ModalidadEntrega, StringFormat='Modalidad: {0}'}" FontFamily="Segoe UI" FontWeight="SemiBold" FontSize="10.5" Foreground="{StaticResource TealBrush}" />
+                                                        <TextBlock Text="{Binding DireccionEntrega, StringFormat='Dirección: {0}'}" FontFamily="Segoe UI" FontSize="10" Foreground="#334155" TextWrapping="Wrap"
+                                                                   Visibility="{Binding EsEntregaDomicilio, Converter={StaticResource BoolToVisConverter}}" />
+
+                                                        <Separator Background="#CBD5E0" Margin="0,4,0,4" />
+                                                        <TextBlock Text="{Binding PresetSeleccionado.Nombre, StringFormat='Bulto: {0}'}" FontFamily="Segoe UI" FontWeight="SemiBold" FontSize="11" Foreground="{StaticResource TextPrimaryBrush}" />
+                                                        <TextBlock Text="{Binding EncomiendaDescripcion, StringFormat='Contenido: {0}'}" FontFamily="Segoe UI" FontSize="10.5" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,1,0,0" />
+                                                        <TextBlock Text="{Binding EncomiendaPesoKg, StringFormat='Peso: {0:N1} kg'}" FontFamily="Segoe UI" FontSize="10.5" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,1,0,0" />
+                                                    </StackPanel>
+                                                </Border>
+
+                                                <!-- Desglose de Liquidación -->
+                                                <Separator Background="#CBD5E0" Margin="0,8,0,8" />
+                                                <Grid Margin="0,0,0,4" Visibility="{Binding EsModoPasajeConEquipaje, Converter={StaticResource BoolToVisConverter}}">
+                                                    <TextBlock Text="Total Boletos:" FontFamily="Segoe UI" FontSize="11.5" Foreground="{StaticResource TextSecondaryBrush}" />
+                                                    <TextBlock Text="{Binding TotalBoletos, Converter={StaticResource CurrencyConverter}}"
+                                                               FontFamily="Segoe UI" FontWeight="SemiBold" FontSize="11.5" Foreground="{StaticResource TextPrimaryBrush}" HorizontalAlignment="Right" />
+                                                </Grid>
+                                                <Grid Margin="0,0,0,4" Visibility="{Binding IncluyeEncomienda, Converter={StaticResource BoolToVisConverter}}">
+                                                    <TextBlock Text="Carga / Encomienda:" FontFamily="Segoe UI" FontSize="11.5" Foreground="{StaticResource TextSecondaryBrush}" />
+                                                    <TextBlock Text="{Binding EncomiendaCosto, Converter={StaticResource CurrencyConverter}}"
+                                                               FontFamily="Segoe UI" FontWeight="SemiBold" FontSize="11.5" Foreground="{StaticResource TextPrimaryBrush}" HorizontalAlignment="Right" />
+                                                </Grid>
+                                                <Grid Margin="0,0,0,6" Visibility="{Binding EsEntregaDomicilio, Converter={StaticResource BoolToVisConverter}}">
+                                                    <TextBlock Text="Recargo Delivery:" FontFamily="Segoe UI" FontSize="11.5" Foreground="{StaticResource TextSecondaryBrush}" />
+                                                    <TextBlock Text="{Binding RecargoDelivery, Converter={StaticResource CurrencyConverter}}"
+                                                               FontFamily="Segoe UI" FontWeight="SemiBold" FontSize="11.5" Foreground="{StaticResource TextPrimaryBrush}" HorizontalAlignment="Right" />
+                                                </Grid>
+                                                <Separator Background="#CBD5E0" Margin="0,4,0,6" />
+                                                <Grid>
+                                                    <TextBlock Text="Total Final a Pagar:" FontFamily="Segoe UI" FontWeight="Bold" FontSize="12.5" Foreground="{StaticResource PrimaryBrush}" />
+                                                    <TextBlock Text="{Binding TotalVenta, Converter={StaticResource CurrencyConverter}}"
+                                                               FontFamily="Segoe UI" FontWeight="Bold" FontSize="14" Foreground="{StaticResource ContrastOrangeBrush}" HorizontalAlignment="Right" />
+                                                </Grid>
+                                            </StackPanel>
+                                        </Border>
+                                    </Grid>
+
+                                    <!-- Botón de Acción Final: Confirmar Pago y Emitir Boletos / Despachar Encomienda -->
+                                    <Button Command="{Binding ConfirmarVentaFinalCommand}"
+                                            Background="#16A34A" Foreground="White"
+                                            FontFamily="Segoe UI" FontWeight="Bold" FontSize="14"
+                                            Height="48" Margin="0,18,0,0" Cursor="Hand" BorderThickness="0">
+                                        <Button.Resources>
+                                            <Style TargetType="Border">
+                                                <Setter Property="CornerRadius" Value="8" />
+                                            </Style>
+                                        </Button.Resources>
+                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                            <TextBlock Text="✓ " FontSize="16" FontWeight="Bold" VerticalAlignment="Center" />
+                                            <TextBlock Text="{Binding TextoBotonConfirmarPago}"
+                                                       VerticalAlignment="Center" />
+                                        </StackPanel>
+                                    </Button>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
                     </StackPanel>
                 </ScrollViewer>
             </Border>
@@ -1728,7 +2146,7 @@
                                Foreground="{StaticResource ContrastOrangeBrush}" HorizontalAlignment="Right" />
                 </StackPanel>
 
-                <!-- Botón Principal de Acción (Paso 1 y Paso 2) -->
+                <!-- Botón Principal de Acción (Paso 1, Paso 2 y Paso 3) -->
                 <Grid Grid.Column="2">
                     <Button Command="{Binding IrAPasajerosCommand}"
                             Visibility="{Binding MostrarPanelViajes, Converter={StaticResource BoolToVisConverter}}"
@@ -1739,6 +2157,20 @@
                             Visibility="{Binding MostrarPanelPasajeros, Converter={StaticResource BoolToVisConverter}}"
                             Height="52" MinWidth="260" Style="{StaticResource ContrastButtonStyle}">
                         <TextBlock FontSize="13.5" FontWeight="Bold" Text="{Binding TextoBotonContinuarAPago}" VerticalAlignment="Center"/>
+                    </Button>
+                    <Button Command="{Binding ConfirmarVentaFinalCommand}"
+                            Visibility="{Binding MostrarPanelPago, Converter={StaticResource BoolToVisConverter}}"
+                            Background="#16A34A" Foreground="White"
+                            BorderThickness="0"
+                            Height="52" MinWidth="260" Cursor="Hand">
+                        <Button.Resources>
+                            <Style TargetType="Border">
+                                <Setter Property="CornerRadius" Value="8" />
+                            </Style>
+                        </Button.Resources>
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                            <TextBlock Text="{Binding TextoBotonFooterConfirmar}" VerticalAlignment="Center" FontWeight="Bold" FontSize="13" />
+                        </StackPanel>
                     </Button>
                 </Grid>
             </Grid>
