@@ -139,13 +139,57 @@ namespace SistemaTransportes
         }
     }
 
-    public class PresetItemViewModel
+    public class PresetItemViewModel : ViewModelBase
     {
+        private decimal _tarifa;
+        private string? _tarifaDisplay;
+
+        public string Titulo { get; set; } = "";
         public string Nombre { get; set; } = "";
-        public string Icono { get; set; } = "Box";
+        public string Icono { get; set; } = "📦";
         public string Descripcion { get; set; } = "";
-        public string TarifaDisplay { get; set; } = "";
-        public decimal Tarifa { get; set; }
+        public decimal TarifaPasajero { get; set; }
+        public decimal TarifaSoloEncomienda { get; set; }
+
+        public decimal Tarifa
+        {
+            get => _tarifa;
+            set
+            {
+                if (SetProperty(ref _tarifa, value))
+                {
+                    OnPropertyChanged(nameof(TarifaDisplay));
+                }
+            }
+        }
+
+        public decimal PesoRef { get; set; }
+        public bool EsPersonalizado { get; set; }
+
+        public string TarifaDisplay
+        {
+            get => _tarifaDisplay ?? (EsPersonalizado ? "S/. 3.00 / Kg" : $"S/. {Tarifa:N2}");
+            set => SetProperty(ref _tarifaDisplay, value);
+        }
+
+        public void ActualizarModo(bool esSoloEncomienda)
+        {
+            Tarifa = esSoloEncomienda ? TarifaSoloEncomienda : TarifaPasajero;
+            _tarifaDisplay = EsPersonalizado
+                ? $"S/. {(esSoloEncomienda ? 4.00m : 3.00m):N2} / Kg"
+                : $"S/. {Tarifa:N2}";
+            OnPropertyChanged(nameof(TarifaDisplay));
+        }
+
+        public bool CoincideCon(string texto)
+        {
+            if (string.IsNullOrWhiteSpace(texto)) return false;
+            string t = texto.Trim();
+            return string.Equals(Nombre, t, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(Titulo, t, StringComparison.OrdinalIgnoreCase)
+                || Nombre.Contains(t, StringComparison.OrdinalIgnoreCase)
+                || Titulo.Contains(t, StringComparison.OrdinalIgnoreCase);
+        }
     }
 
     public class ViajeItemViewModel : ViewModelBase
@@ -288,51 +332,152 @@ namespace SistemaTransportes
         }
 
         // --- Modalidad y Carga ---
-        private bool _esModoPasajeConEquipaje = true;
         public bool EsModoPasajeConEquipaje
         {
-            get => _esModoPasajeConEquipaje;
+            get => true;
             set
             {
-                if (SetProperty(ref _esModoPasajeConEquipaje, value))
-                {
-                    if (value)
-                    {
-                        EsSoloEncomienda = false;
-                    }
-                    OnPropertyChanged(nameof(EsSoloEncomienda));
-                    CalcularLiquidacion();
-                }
+                OnPropertyChanged(nameof(EsModoPasajeConEquipaje));
+                OnPropertyChanged(nameof(EsSoloEncomienda));
             }
         }
 
-        private bool _esSoloEncomienda;
         public bool EsSoloEncomienda
         {
-            get => _esSoloEncomienda;
+            get => false;
             set
             {
-                if (SetProperty(ref _esSoloEncomienda, value))
-                {
-                    if (value)
-                    {
-                        EsModoPasajeConEquipaje = false;
-                        MostrarMapaAsientos = false;
-                    }
-                    OnPropertyChanged(nameof(EsModoPasajeConEquipaje));
-                    CalcularLiquidacion();
-                }
+                // Bloqueado para este hito: mantener fijo el modo pasaje con equipaje
+                OnPropertyChanged(nameof(EsSoloEncomienda));
+                OnPropertyChanged(nameof(EsModoPasajeConEquipaje));
             }
         }
 
-        public bool IncluyeEncomienda { get; set; }
+        private bool _incluyeEncomienda;
+        public bool IncluyeEncomienda
+        {
+            get => _incluyeEncomienda;
+            set
+            {
+                if (!SetProperty(ref _incluyeEncomienda, value))
+                {
+                    return;
+                }
+
+                if (!_incluyeEncomienda)
+                {
+                    PresetSeleccionado = null;
+                    EsCargaPersonalizada = false;
+                    EncomiendaDescripcion = string.Empty;
+                    _encomiendaPesoKg = 0m;
+                    _encomiendaPesoKgTexto = "0";
+                    OnPropertyChanged(nameof(EncomiendaPesoKg));
+                    OnPropertyChanged(nameof(EncomiendaPesoKgTexto));
+                    OnPropertyChanged(nameof(EsPesoMaximoEncomienda));
+                    _encomiendaCosto = 0m;
+                    OnPropertyChanged(nameof(EncomiendaCosto));
+                }
+                else
+                {
+                    PresetSeleccionado = PresetsDisponibles.FirstOrDefault(p => p.Nombre.Contains("Caja Chica"))
+                                        ?? PresetsDisponibles[0];
+                    if (PresetSeleccionado != null)
+                    {
+                        EncomiendaCosto = 15.00m;
+                        EsCargaPersonalizada = false;
+                    }
+                }
+
+                CalcularLiquidacion();
+            }
+        }
 
         public ObservableCollection<PresetItemViewModel> PresetsDisponibles { get; } = new()
         {
-            new PresetItemViewModel { Nombre = "Sobre / Doc", Icono = "Envelope", Descripcion = "Hasta 1 Kg", Tarifa = 15.00m, TarifaDisplay = "S/. 15.00" },
-            new PresetItemViewModel { Nombre = "Paquete Chico", Icono = "Box", Descripcion = "Hasta 5 Kg", Tarifa = 25.00m, TarifaDisplay = "S/. 25.00" },
-            new PresetItemViewModel { Nombre = "Caja Mediana", Icono = "BoxesStacked", Descripcion = "Hasta 15 Kg", Tarifa = 40.00m, TarifaDisplay = "S/. 40.00" },
-            new PresetItemViewModel { Nombre = "Carga Especial", Icono = "TruckRampBox", Descripcion = "Por Kg adicional", Tarifa = 50.00m, TarifaDisplay = "S/. 50.00" }
+            new PresetItemViewModel
+            {
+                Titulo = "Sobre / Documento",
+                Nombre = "Sobre / Documento",
+                Descripcion = "Documentos, sobres, cartas y correspondencia legal.",
+                TarifaPasajero = 10.00m,
+                TarifaSoloEncomienda = 12.00m,
+                Tarifa = 10.00m,
+                PesoRef = 0.5m,
+                EsPersonalizado = false,
+                Icono = "✉️"
+            },
+            new PresetItemViewModel
+            {
+                Titulo = "Caja Chica",
+                Nombre = "Caja Chica (Calzado / Paquete pequeño)",
+                Descripcion = "Calzado, accesorios personales, repuestos o encomienda compacta.",
+                TarifaPasajero = 15.00m,
+                TarifaSoloEncomienda = 20.00m,
+                Tarifa = 15.00m,
+                PesoRef = 3.0m,
+                EsPersonalizado = false,
+                Icono = "📦"
+            },
+            new PresetItemViewModel
+            {
+                Titulo = "Caja Mediana",
+                Nombre = "Caja Mediana (Abarrotes / Menaje)",
+                Descripcion = "Víveres, abarrotes, menaje o paquetes medianos.",
+                TarifaPasajero = 25.00m,
+                TarifaSoloEncomienda = 30.00m,
+                Tarifa = 25.00m,
+                PesoRef = 8.0m,
+                EsPersonalizado = false,
+                Icono = "📦"
+            },
+            new PresetItemViewModel
+            {
+                Titulo = "Caja Grande",
+                Nombre = "Caja Grande (Electrodoméstico / Caja pesada)",
+                Descripcion = "Electrodomésticos, equipos de sonido, cajas de volumen amplio.",
+                TarifaPasajero = 40.00m,
+                TarifaSoloEncomienda = 50.00m,
+                Tarifa = 40.00m,
+                PesoRef = 15.0m,
+                EsPersonalizado = false,
+                Icono = "📦"
+            },
+            new PresetItemViewModel
+            {
+                Titulo = "Saco / Costal / Fardo",
+                Nombre = "Saco / Costal / Fardo (Bodega andina / selva)",
+                Descripcion = "Costales agrícolas, sacos de granos, fardos de ropa o productos regionales.",
+                TarifaPasajero = 35.00m,
+                TarifaSoloEncomienda = 45.00m,
+                Tarifa = 35.00m,
+                PesoRef = 20.0m,
+                EsPersonalizado = false,
+                Icono = "🌾"
+            },
+            new PresetItemViewModel
+            {
+                Titulo = "Carga Especial Voluminosa",
+                Nombre = "Carga Especial Voluminosa (Bicicleta / TV / Instrumento / Cochecito)",
+                Descripcion = "Bicicletas, televisores pantalla plana, guitarras, coches para bebé.",
+                TarifaPasajero = 50.00m,
+                TarifaSoloEncomienda = 65.00m,
+                Tarifa = 50.00m,
+                PesoRef = 15.0m,
+                EsPersonalizado = false,
+                Icono = "🚲"
+            },
+            new PresetItemViewModel
+            {
+                Titulo = "Personalizado",
+                Nombre = "Personalizado (Medición y peso manual)",
+                Descripcion = "Tarifa según peso exacto en balanza (máx. 50 kg).",
+                TarifaPasajero = 0.00m,
+                TarifaSoloEncomienda = 0.00m,
+                Tarifa = 0.00m,
+                PesoRef = 0.0m,
+                EsPersonalizado = true,
+                Icono = "⚖️"
+            }
         };
 
         private PresetItemViewModel? _presetSeleccionado;
@@ -341,14 +486,46 @@ namespace SistemaTransportes
             get => _presetSeleccionado;
             set
             {
-                if (SetProperty(ref _presetSeleccionado, value))
+                if (!SetProperty(ref _presetSeleccionado, value))
                 {
-                    if (value != null)
-                    {
-                        EncomiendaCosto = value.Tarifa;
-                    }
-                    CalcularLiquidacion();
+                    return;
                 }
+
+                if (_presetSeleccionado == null)
+                {
+                    EsCargaPersonalizada = false;
+                    return;
+                }
+
+                if (_presetSeleccionado.EsPersonalizado)
+                {
+                    EsCargaPersonalizada = true;
+
+                    if (string.IsNullOrWhiteSpace(EncomiendaDescripcion)
+                        || PresetsDisponibles.Any(p => !p.EsPersonalizado && p.Nombre == EncomiendaDescripcion))
+                    {
+                        EncomiendaDescripcion = "Carga especial / Equipaje adicional";
+                    }
+
+                    EncomiendaCosto = EncomiendaPesoKg <= 0m
+                        ? 0m
+                        : Math.Round(EncomiendaPesoKg * TarifaPorKg, 2);
+
+                    return;
+                }
+
+                EsCargaPersonalizada = false;
+                EncomiendaDescripcion = _presetSeleccionado.Nombre;
+
+                _encomiendaPesoKg = _presetSeleccionado.PesoRef;
+                _encomiendaPesoKgTexto = _presetSeleccionado.PesoRef.ToString("0.##", CultureInfo.InvariantCulture);
+                OnPropertyChanged(nameof(EncomiendaPesoKg));
+                OnPropertyChanged(nameof(EncomiendaPesoKgTexto));
+                OnPropertyChanged(nameof(EsPesoMaximoEncomienda));
+
+                _encomiendaCosto = _presetSeleccionado.TarifaPasajero > 0 ? _presetSeleccionado.TarifaPasajero : _presetSeleccionado.Tarifa;
+                OnPropertyChanged(nameof(EncomiendaCosto));
+                CalcularLiquidacion();
             }
         }
 
@@ -388,18 +565,113 @@ namespace SistemaTransportes
 
         public decimal RecargoDelivery => (EsSoloEncomienda && EsEntregaDomicilio) ? 10.00m : 0.00m;
 
-        private decimal _encomiendaCosto;
+        public const decimal LimiteMaximoPesoKg = 50.0m;
+
+        private decimal _encomiendaCosto = 15.00m;
         public decimal EncomiendaCosto
         {
             get => _encomiendaCosto;
-            set => SetProperty(ref _encomiendaCosto, value);
+            set
+            {
+                if (SetProperty(ref _encomiendaCosto, value))
+                {
+                    CalcularLiquidacion();
+                }
+            }
         }
-        public decimal TarifaPorKg => 2.50m;
-        public decimal EncomiendaPesoKg { get; set; } = 5.0m;
-        public string EncomiendaPesoKgTexto { get; set; } = "5.0";
-        public string EncomiendaDescripcion { get; set; } = "Paquete sellado";
-        public bool EsCargaPersonalizada => false;
-        public bool EsPesoMaximoEncomienda => false;
+
+        public decimal TarifaPorKg => EsSoloEncomienda ? 4.00m : 3.00m;
+
+        private string _encomiendaPesoKgTexto = "3.0";
+        public string EncomiendaPesoKgTexto
+        {
+            get => _encomiendaPesoKgTexto;
+            set
+            {
+                if (_encomiendaPesoKgTexto == value) return;
+
+                _encomiendaPesoKgTexto = value ?? string.Empty;
+                OnPropertyChanged();
+
+                string limpio = _encomiendaPesoKgTexto.Trim().Replace(',', '.');
+
+                if (string.IsNullOrWhiteSpace(limpio) || limpio == "." || limpio == "-")
+                {
+                    _encomiendaPesoKg = 0m;
+                    OnPropertyChanged(nameof(EncomiendaPesoKg));
+                    OnPropertyChanged(nameof(EsPesoMaximoEncomienda));
+
+                    if (EsCargaPersonalizada)
+                    {
+                        EncomiendaCosto = 0m;
+                    }
+                }
+                else if (decimal.TryParse(limpio, NumberStyles.Any, CultureInfo.InvariantCulture, out decimal parsed))
+                {
+                    parsed = Math.Clamp(parsed, 0m, LimiteMaximoPesoKg);
+
+                    _encomiendaPesoKg = parsed;
+                    OnPropertyChanged(nameof(EncomiendaPesoKg));
+                    OnPropertyChanged(nameof(EsPesoMaximoEncomienda));
+
+                    if (EsCargaPersonalizada)
+                    {
+                        EncomiendaCosto = Math.Round(parsed * TarifaPorKg, 2);
+                    }
+                }
+            }
+        }
+
+        private decimal _encomiendaPesoKg = 3.0m;
+        public decimal EncomiendaPesoKg
+        {
+            get => _encomiendaPesoKg;
+            set
+            {
+                decimal acotado = Math.Clamp(value, 0m, LimiteMaximoPesoKg);
+
+                bool cambioValor = _encomiendaPesoKg != acotado;
+                _encomiendaPesoKg = acotado;
+
+                string strVal = acotado.ToString("0.##", CultureInfo.InvariantCulture);
+                if (!string.IsNullOrWhiteSpace(_encomiendaPesoKgTexto) && _encomiendaPesoKgTexto != strVal)
+                {
+                    _encomiendaPesoKgTexto = strVal;
+                    OnPropertyChanged(nameof(EncomiendaPesoKgTexto));
+                }
+                else if (string.IsNullOrWhiteSpace(_encomiendaPesoKgTexto) && acotado > 0m)
+                {
+                    _encomiendaPesoKgTexto = strVal;
+                    OnPropertyChanged(nameof(EncomiendaPesoKgTexto));
+                }
+
+                if (!cambioValor) return;
+
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(EsPesoMaximoEncomienda));
+
+                if (EsCargaPersonalizada)
+                {
+                    EncomiendaCosto = Math.Round(acotado * TarifaPorKg, 2);
+                }
+            }
+        }
+
+        private string _encomiendaDescripcion = "Caja Chica (Calzado / Paquete pequeño)";
+        public string EncomiendaDescripcion
+        {
+            get => _encomiendaDescripcion;
+            set => SetProperty(ref _encomiendaDescripcion, value);
+        }
+
+        private bool _esCargaPersonalizada;
+        public bool EsCargaPersonalizada
+        {
+            get => _esCargaPersonalizada;
+            set => SetProperty(ref _esCargaPersonalizada, value);
+        }
+
+        public bool EsPesoMaximoEncomienda => EncomiendaPesoKg >= LimiteMaximoPesoKg;
         public string TerminalLlegadaDisplay => ViajeSeleccionado != null
             ? $"Agencia Central {ViajeSeleccionado.Destino} — Terminal Terrestre"
             : "Agencia Central de Destino — Terminal Terrestre";
@@ -535,8 +807,13 @@ namespace SistemaTransportes
                 Session = session;
             }
 
-            _presetSeleccionado = PresetsDisponibles[0];
-            _encomiendaCosto = _presetSeleccionado.Tarifa;
+            _incluyeEncomienda = false;
+            _presetSeleccionado = null;
+            _encomiendaCosto = 0m;
+            _encomiendaPesoKg = 0m;
+            _encomiendaPesoKgTexto = "0";
+            _encomiendaDescripcion = string.Empty;
+            _esCargaPersonalizada = false;
 
             BuscarViajesCommand = new RelayCommand(BuscarViajes);
             LimpiarBusquedaCommand = new RelayCommand(LimpiarBusqueda);
@@ -809,6 +1086,8 @@ namespace SistemaTransportes
             MetodoPagoSeleccionado = "Efectivo";
             MontoRecibido = null;
             NroOperacion = "";
+            IncluyeEncomienda = false;
+            PresetSeleccionado = PresetsDisponibles.FirstOrDefault();
             CalcularLiquidacion();
         }
 
@@ -838,10 +1117,17 @@ namespace SistemaTransportes
         {
             if (viaje == null) return;
             ViajeSeleccionado = viaje;
-            MostrarMapaAsientos = true;
+            MostrarMapaAsientos = !EsSoloEncomienda;
             AsientosSeleccionados.Clear();
 
-            ConsultarAsientosDesdeBd(viaje.ViajeID);
+            if (!EsSoloEncomienda)
+            {
+                ConsultarAsientosDesdeBd(viaje.ViajeID);
+            }
+            else
+            {
+                CalcularLiquidacion();
+            }
         }
 
         private void ConsultarAsientosDesdeBd(int viajeId)
@@ -962,6 +1248,21 @@ namespace SistemaTransportes
 
         private void IrAPasajeros()
         {
+            if (EsSoloEncomienda)
+            {
+                if (ViajeSeleccionado == null)
+                {
+                    MessageBox.Show("Seleccione un viaje de destino para la encomienda.", "Validación", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+                MostrarPanelViajes = false;
+                MostrarPanelPasajeros = false;
+                MostrarPanelPago = true;
+                MontoRecibido = TotalVenta;
+                CalcularLiquidacion();
+                return;
+            }
+
             Pasajeros.Clear();
             foreach (var a in AsientosSeleccionados.OrderBy(x => x.NroAsiento))
             {
@@ -1045,6 +1346,14 @@ namespace SistemaTransportes
 
         private void VolverAPasajeros()
         {
+            if (EsSoloEncomienda)
+            {
+                MostrarPanelPago = false;
+                MostrarPanelPasajeros = false;
+                MostrarPanelViajes = true;
+                return;
+            }
+
             MostrarPanelPago = false;
             MostrarPanelPasajeros = true;
             MostrarPanelViajes = false;
@@ -1089,8 +1398,22 @@ namespace SistemaTransportes
                 p.Precio
             }).ToList();
 
-            string descEnc = string.IsNullOrWhiteSpace(EncomiendaDescripcion) ? "Paquete / Encomienda" : EncomiendaDescripcion.Trim();
-            decimal pesoEnc = EncomiendaPesoKg;
+            string descEnc;
+            decimal pesoEnc;
+            if (PresetSeleccionado?.EsPersonalizado == true)
+            {
+                descEnc = string.IsNullOrWhiteSpace(EncomiendaDescripcion) ? "Carga especial / Equipaje adicional" : EncomiendaDescripcion.Trim();
+                pesoEnc = EncomiendaPesoKg > 0 ? EncomiendaPesoKg : 1.0m;
+            }
+            else
+            {
+                descEnc = !string.IsNullOrWhiteSpace(PresetSeleccionado?.Nombre)
+                    ? PresetSeleccionado.Nombre
+                    : (string.IsNullOrWhiteSpace(EncomiendaDescripcion) ? "Paquete / Encomienda" : EncomiendaDescripcion.Trim());
+                pesoEnc = PresetSeleccionado != null && PresetSeleccionado.PesoRef > 0
+                    ? PresetSeleccionado.PesoRef
+                    : (EncomiendaPesoKg > 0 ? EncomiendaPesoKg : 3.0m);
+            }
             decimal costoEnc = EncomiendaCosto;
             string remTipoDoc = string.IsNullOrWhiteSpace(RemitenteTipoDoc) ? "DNI" : RemitenteTipoDoc;
             string? remDoc = string.IsNullOrWhiteSpace(RemitenteDoc) ? null : RemitenteDoc.Trim();
@@ -1100,6 +1423,15 @@ namespace SistemaTransportes
             string? destDoc = string.IsNullOrWhiteSpace(DestinatarioDoc) ? null : DestinatarioDoc.Trim();
             string? destNombre = string.IsNullOrWhiteSpace(DestinatarioNombre) ? null : DestinatarioNombre.Trim();
             string? destTel = string.IsNullOrWhiteSpace(DestinatarioTelefono) ? null : DestinatarioTelefono.Trim();
+
+            if (!esSoloEnc && listaPasajeros.Count > 0)
+            {
+                if (string.IsNullOrWhiteSpace(remDoc)) remDoc = listaPasajeros[0].Dni;
+                if (string.IsNullOrWhiteSpace(remNombre)) remNombre = listaPasajeros[0].Nombres;
+                if (string.IsNullOrWhiteSpace(destDoc)) destDoc = listaPasajeros[0].Dni;
+                if (string.IsNullOrWhiteSpace(destNombre)) destNombre = listaPasajeros[0].Nombres;
+            }
+
             string modEntrega = string.IsNullOrWhiteSpace(ModalidadEntrega) ? "Agencia" : ModalidadEntrega;
             string? dirEntrega = EsEntregaDomicilio && !string.IsNullOrWhiteSpace(DireccionEntrega) ? DireccionEntrega.Trim() : null;
             decimal recDelivery = RecargoDelivery;
@@ -1114,6 +1446,8 @@ namespace SistemaTransportes
 
                     try
                     {
+                        int? primerBoletoId = null;
+
                         if (!esSoloEnc)
                         {
                             const string sqlActualizarAsiento = @"
@@ -1129,7 +1463,8 @@ namespace SistemaTransportes
                                 VALUES (
                                     @ViajeID, @NroAsiento, @DniPasajero, @NombrePasajero, 
                                     @PrecioFinal, GETDATE(), @CajaTurnoID, @MetodoPago, @NumeroOperacion
-                                );";
+                                );
+                                SELECT CAST(SCOPE_IDENTITY() AS INT);";
 
                             foreach (var pas in listaPasajeros)
                             {
@@ -1156,7 +1491,11 @@ namespace SistemaTransportes
                                     cmdBoleto.Parameters.Add("@MetodoPago", SqlDbType.VarChar, 30).Value = metodoPago;
                                     cmdBoleto.Parameters.Add("@NumeroOperacion", SqlDbType.VarChar, 50).Value = (object?)nroOp ?? DBNull.Value;
 
-                                    cmdBoleto.ExecuteNonQuery();
+                                    object? resId = cmdBoleto.ExecuteScalar();
+                                    if (primerBoletoId == null && resId != null && resId != DBNull.Value)
+                                    {
+                                        primerBoletoId = Convert.ToInt32(resId);
+                                    }
                                 }
                             }
                         }
@@ -1165,19 +1504,20 @@ namespace SistemaTransportes
                         {
                             const string sqlInsertEncomienda = @"
                                 INSERT INTO dbo.Encomiendas (
-                                    ViajeID, CajaTurnoID, Descripcion, PesoKg, CostoCarga, 
+                                    BoletoID, ViajeID, CajaTurnoID, Descripcion, PesoKg, CostoCarga, 
                                     FechaRecepcion, RemitenteTipoDoc, RemitenteDoc, RemitenteNombre, RemitenteTelefono,
                                     DestinatarioTipoDoc, DestinatarioDoc, DestinatarioNombre, DestinatarioTelefono,
                                     ModalidadEntrega, DireccionEntrega, RecargoDelivery, MetodoPago, NumeroOperacion
                                 ) 
                                 VALUES (
-                                    @ViajeID, @CajaTurnoID, @Descripcion, @PesoKg, @CostoCarga, 
+                                    @BoletoID, @ViajeID, @CajaTurnoID, @Descripcion, @PesoKg, @CostoCarga, 
                                     GETDATE(), @RemitenteTipoDoc, @RemitenteDoc, @RemitenteNombre, @RemitenteTelefono,
                                     @DestinatarioTipoDoc, @DestinatarioDoc, @DestinatarioNombre, @DestinatarioTelefono,
                                     @ModalidadEntrega, @DireccionEntrega, @RecargoDelivery, @MetodoPago, @NumeroOperacion
                                 );";
 
                             using var cmdEnc = new SqlCommand(sqlInsertEncomienda, connection, transaction);
+                            cmdEnc.Parameters.Add("@BoletoID", SqlDbType.Int).Value = (primerBoletoId.HasValue && primerBoletoId.Value > 0) ? (object)primerBoletoId.Value : DBNull.Value;
                             cmdEnc.Parameters.Add("@ViajeID", SqlDbType.Int).Value = viajeId > 0 ? (object)viajeId : DBNull.Value;
                             cmdEnc.Parameters.Add("@CajaTurnoID", SqlDbType.Int).Value = cajaTurnoId;
                             cmdEnc.Parameters.Add("@Descripcion", SqlDbType.NVarChar, 150).Value = descEnc;
@@ -1257,7 +1597,8 @@ namespace SistemaTransportes
                 else
                 {
                     string asientos = string.Join("\n", listaPasajeros.Select(p => $"• Asiento #{p.NroAsiento} (Piso {p.Piso}): {p.Nombres} - DNI: {p.Dni} (S/. {p.Precio:N2})"));
-                    mensaje = $"¡VENTA CONFIRMADA CON ÉXITO!\n\nBoletos Emitidos:\n{asientos}\n\nTotal Pagado: S/. {totalVenta:N2}\nNuevo Saldo en Caja: S/. {SaldoCajaActual:N2}\n{detallePago}";
+                    string cargaInfo = incEnc ? $"\n\nCarga / Encomienda Adjunta: {descEnc} (S/. {costoEnc:N2})" : "";
+                    mensaje = $"¡VENTA CONFIRMADA CON ÉXITO!\n\nBoletos Emitidos:\n{asientos}{cargaInfo}\n\nTotal Pagado: S/. {totalVenta:N2}\nNuevo Saldo en Caja: S/. {SaldoCajaActual:N2}\n{detallePago}";
                 }
 
                 MessageBox.Show(mensaje, "Emisión Exitosa", MessageBoxButton.OK, MessageBoxImage.Information);

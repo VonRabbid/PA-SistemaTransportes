@@ -1894,7 +1894,7 @@
                             <StackPanel>
                                 <TextBlock Text="Modalidad de Atención:" FontFamily="Segoe UI" FontWeight="Bold" FontSize="11.5"
                                            Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,8" />
-                                <RadioButton Content="Pasaje con Equipaje Opcional"
+                                <RadioButton Content="Pasaje con Equipaje (Opcional)"
                                              IsChecked="{Binding EsModoPasajeConEquipaje, Mode=TwoWay}"
                                              FontFamily="Segoe UI" FontWeight="SemiBold" FontSize="12"
                                              Foreground="{StaticResource PrimaryBrush}" Cursor="Hand" Margin="0,0,0,6" />
@@ -1970,7 +1970,7 @@
                                 </ComboBox>
 
                                 <!-- Tarjeta Compacta de Confirmación del Bulto Seleccionado -->
-                                <Border Background="#FFFFFF" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1"
+                                <Border Background="#FFFFFF" BorderBrush="#E2E8F0" BorderThickness="1"
                                         CornerRadius="6" Padding="10,8" Margin="0,0,0,10">
                                     <Grid>
                                         <Grid.ColumnDefinitions>
@@ -2003,7 +2003,7 @@
                                 <StackPanel Visibility="{Binding EsCargaPersonalizada, Converter={StaticResource BoolToVisConverter}}">
                                     <Border Background="#FEF3C7" BorderBrush="#FCD34D" BorderThickness="1" CornerRadius="6" Padding="8" Margin="0,0,0,10">
                                         <TextBlock Text="{Binding TarifaPorKg, StringFormat='{}ℹ Medición manual en balanza: Ingrese el peso exacto (S/. {0:N2} por Kg) y detalle el contenido.'}"
-                                                   FontFamily="Segoe UI" FontSize="11" Foreground="#92400E" TextWrapping="Wrap" />
+                                                    FontFamily="Segoe UI" FontSize="11" Foreground="#92400E" TextWrapping="Wrap" />
                                     </Border>
 
                                     <!-- Descripción del Contenido -->
@@ -2034,7 +2034,7 @@
                                     <TextBlock Text="Costo Calculado de Carga (S/.):"
                                                FontFamily="Segoe UI" FontWeight="SemiBold" FontSize="12"
                                                Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,4" />
-                                    <TextBox Background="#E9ECEF" Focusable="False" IsReadOnly="True" Margin="0,0,0,4" Style="{StaticResource ModernTextBoxStyle}" Text="{Binding EncomiendaCosto, Mode=OneWay, Converter={StaticResource DecimalInputConverter}}" />
+                                    <TextBox Background="#E9ECEF" Focusable="False" IsReadOnly="True" Margin="0,0,0,4" Style="{StaticResource ModernTextBoxStyle}" Text="{Binding EncomiendaCosto, Mode=OneWay, StringFormat='{}{0:N2}'}" />
                                 </StackPanel>
                             </StackPanel>
                         </Border>
