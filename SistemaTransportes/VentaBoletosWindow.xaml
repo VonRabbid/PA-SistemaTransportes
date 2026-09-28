@@ -1663,7 +1663,9 @@
                                                 <TextBlock Text="Monto Recibido en Efectivo (S/.):"
                                                            FontFamily="Segoe UI" FontWeight="SemiBold" FontSize="12"
                                                            Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,4" />
-                                                <TextBox Text="{Binding MontoRecibido, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource DecimalConverter}}"
+                                                <TextBox Text="{Binding MontoRecibido, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource DecimalConverter}, TargetNullValue=''}"
+                                                         GotFocus="TxtMontoRecibido_GotFocus"
+                                                         PreviewMouseLeftButtonDown="TxtMontoRecibido_PreviewMouseLeftButtonDown"
                                                          Style="{StaticResource ModernTextBoxStyle}"
                                                          FontSize="16" FontWeight="Bold" Foreground="{StaticResource PrimaryBrush}"
                                                          Margin="0,0,0,8" />

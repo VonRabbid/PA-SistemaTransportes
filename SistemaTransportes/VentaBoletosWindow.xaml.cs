@@ -53,6 +53,23 @@ namespace SistemaTransportes
             login.Show();
             this.Close();
         }
+
+        private void TxtMontoRecibido_GotFocus(object sender, RoutedEventArgs e)
+        {
+            if (sender is TextBox tb)
+            {
+                tb.SelectAll();
+            }
+        }
+
+        private void TxtMontoRecibido_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            if (sender is TextBox tb && !tb.IsKeyboardFocusWithin)
+            {
+                e.Handled = true;
+                tb.Focus();
+            }
+        }
     }
 
     #region ViewModels Auxiliares
@@ -464,14 +481,15 @@ namespace SistemaTransportes
         public bool EsPagoEfectivo => MetodoPagoSeleccionado == "Efectivo";
         public bool EsPagoDigital => MetodoPagoSeleccionado != "Efectivo";
 
-        private decimal _montoRecibido = 100.00m;
-        public decimal MontoRecibido
+        private decimal? _montoRecibido = 100.00m;
+        public decimal? MontoRecibido
         {
             get => _montoRecibido;
             set
             {
                 if (SetProperty(ref _montoRecibido, value))
                 {
+                    OnPropertyChanged(nameof(MontoRecibidoSeguro));
                     OnPropertyChanged(nameof(Vuelto));
                     OnPropertyChanged(nameof(FaltaDinero));
                     OnPropertyChanged(nameof(DiferenciaFaltante));
@@ -479,9 +497,10 @@ namespace SistemaTransportes
             }
         }
 
-        public decimal Vuelto => MontoRecibido >= TotalVenta ? MontoRecibido - TotalVenta : 0m;
-        public bool FaltaDinero => EsPagoEfectivo && MontoRecibido < TotalVenta;
-        public decimal DiferenciaFaltante => TotalVenta - MontoRecibido;
+        public decimal MontoRecibidoSeguro => MontoRecibido ?? 0m;
+        public decimal Vuelto => MontoRecibidoSeguro >= TotalVenta ? MontoRecibidoSeguro - TotalVenta : 0m;
+        public bool FaltaDinero => EsPagoEfectivo && (MontoRecibido == null || MontoRecibido < TotalVenta);
+        public decimal DiferenciaFaltante => TotalVenta - MontoRecibidoSeguro;
         public string NroOperacion { get; set; } = "";
         public int MaxLongitudOperacion => 12;
 
@@ -609,17 +628,10 @@ namespace SistemaTransportes
                             OrigenesDisponibles.Add(orig);
                         }
 
-                        if (OrigenesDisponibles.Count > 0)
-                        {
-                            OrigenSeleccionado = OrigenesDisponibles.Contains("Lima") ? "Lima" : OrigenesDisponibles[0];
-                        }
+                        OrigenSeleccionado = null;
+                        DestinoSeleccionado = null;
+                        MostrarResultadosViajes = false;
                     });
-                });
-
-                // 3. Ejecutar búsqueda inicial de viajes
-                Application.Current.Dispatcher.Invoke(() =>
-                {
-                    BuscarViajes();
                 });
             }
             catch (Exception ex)
@@ -781,7 +793,8 @@ namespace SistemaTransportes
 
         private void LimpiarBusqueda()
         {
-            OrigenSeleccionado = OrigenesDisponibles.Count > 0 ? (OrigenesDisponibles.Contains("Lima") ? "Lima" : OrigenesDisponibles[0]) : null;
+            OrigenSeleccionado = null;
+            DestinoSeleccionado = null;
             ViajesDisponibles.Clear();
             ViajeSeleccionado = null;
             MostrarResultadosViajes = false;
@@ -794,7 +807,7 @@ namespace SistemaTransportes
             MostrarPanelPasajeros = false;
             MostrarPanelPago = false;
             MetodoPagoSeleccionado = "Efectivo";
-            MontoRecibido = 0m;
+            MontoRecibido = null;
             NroOperacion = "";
             CalcularLiquidacion();
         }
@@ -1037,7 +1050,7 @@ namespace SistemaTransportes
             MostrarPanelViajes = false;
         }
 
-        private void ConfirmarVenta()
+        private async void ConfirmarVenta()
         {
             if (EsPagoEfectivo && FaltaDinero)
             {
@@ -1045,24 +1058,218 @@ namespace SistemaTransportes
                 return;
             }
 
-            string detallePago = EsPagoEfectivo
-                ? $"Método de Pago: Efectivo (Entregado: S/. {MontoRecibido:N2} | Vuelto: S/. {Vuelto:N2})"
-                : $"Método de Pago: {MetodoPagoSeleccionado}" + (string.IsNullOrWhiteSpace(NroOperacion) ? "" : $" (Ref: {NroOperacion.Trim()})");
-
-            string mensaje;
-            if (EsSoloEncomienda)
+            if (!EsSoloEncomienda && (ViajeSeleccionado == null || Pasajeros.Count == 0))
             {
-                string modalidad = EsEntregaDomicilio ? "Entrega a Domicilio (+S/. 10.00)" : "Recojo en Agencia";
-                mensaje = $"¡DESPACHO DE ENCOMIENDA CONFIRMADO CON ÉXITO!\n\nModalidad: {modalidad}\nTotal Pagado: S/. {TotalVenta:N2}\n{detallePago}";
-            }
-            else
-            {
-                string asientos = string.Join("\n", Pasajeros.Select(p => $"• Asiento #{p.NroAsiento} (Piso {p.Piso}): {p.Nombres} - DNI: {p.Dni} (S/. {p.Precio:N2})"));
-                mensaje = $"¡VENTA CONFIRMADA CON ÉXITO!\n\nBoletos Emitidos:\n{asientos}\n\nTotal Pagado: S/. {TotalVenta:N2}\n{detallePago}";
+                MessageBox.Show("Debe seleccionar un viaje y al menos 1 asiento para emitir boletos.", "Validación", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
             }
 
-            MessageBox.Show(mensaje, "Emisión Exitosa", MessageBoxButton.OK, MessageBoxImage.Information);
-            LimpiarBusqueda();
+            if (EsSoloEncomienda && ViajeSeleccionado == null)
+            {
+                MessageBox.Show("Debe seleccionar un viaje para la encomienda.", "Validación", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            int viajeId = ViajeSeleccionado?.ViajeID ?? 0;
+            int cajaTurnoId = Session?.CajaTurnoID > 0 ? Session.CajaTurnoID : 1;
+            decimal totalVenta = TotalVenta;
+            string metodoPago = MetodoPagoSeleccionado ?? "Efectivo";
+            string? nroOp = string.IsNullOrWhiteSpace(NroOperacion) ? null : NroOperacion.Trim();
+            bool esSoloEnc = EsSoloEncomienda;
+            bool incEnc = IncluyeEncomienda;
+            decimal montoRecibido = MontoRecibidoSeguro;
+            decimal vuelto = Vuelto;
+
+            var listaPasajeros = Pasajeros.Select(p => new
+            {
+                p.NroAsiento,
+                p.Piso,
+                Dni = p.Dni.Trim(),
+                Nombres = p.Nombres.Trim(),
+                p.Precio
+            }).ToList();
+
+            string descEnc = string.IsNullOrWhiteSpace(EncomiendaDescripcion) ? "Paquete / Encomienda" : EncomiendaDescripcion.Trim();
+            decimal pesoEnc = EncomiendaPesoKg;
+            decimal costoEnc = EncomiendaCosto;
+            string remTipoDoc = string.IsNullOrWhiteSpace(RemitenteTipoDoc) ? "DNI" : RemitenteTipoDoc;
+            string? remDoc = string.IsNullOrWhiteSpace(RemitenteDoc) ? null : RemitenteDoc.Trim();
+            string? remNombre = string.IsNullOrWhiteSpace(RemitenteNombre) ? null : RemitenteNombre.Trim();
+            string? remTel = string.IsNullOrWhiteSpace(RemitenteTelefono) ? null : RemitenteTelefono.Trim();
+            string destTipoDoc = string.IsNullOrWhiteSpace(DestinatarioTipoDoc) ? "DNI" : DestinatarioTipoDoc;
+            string? destDoc = string.IsNullOrWhiteSpace(DestinatarioDoc) ? null : DestinatarioDoc.Trim();
+            string? destNombre = string.IsNullOrWhiteSpace(DestinatarioNombre) ? null : DestinatarioNombre.Trim();
+            string? destTel = string.IsNullOrWhiteSpace(DestinatarioTelefono) ? null : DestinatarioTelefono.Trim();
+            string modEntrega = string.IsNullOrWhiteSpace(ModalidadEntrega) ? "Agencia" : ModalidadEntrega;
+            string? dirEntrega = EsEntregaDomicilio && !string.IsNullOrWhiteSpace(DireccionEntrega) ? DireccionEntrega.Trim() : null;
+            decimal recDelivery = RecargoDelivery;
+
+            try
+            {
+                await Task.Run(() =>
+                {
+                    using var connection = new SqlConnection(ObtenerCadenaConexion());
+                    connection.Open();
+                    using var transaction = connection.BeginTransaction();
+
+                    try
+                    {
+                        if (!esSoloEnc)
+                        {
+                            const string sqlActualizarAsiento = @"
+                                UPDATE dbo.EstadoAsientosViaje 
+                                SET Estado = 'Ocupado' 
+                                WHERE ViajeID = @ViajeID AND NroAsiento = @NroAsiento;";
+
+                            const string sqlInsertBoleto = @"
+                                INSERT INTO dbo.Boletos (
+                                    ViajeID, NroAsiento, DniPasajero, NombrePasajero, 
+                                    PrecioFinal, FechaEmision, CajaTurnoID, MetodoPago, NumeroOperacion
+                                ) 
+                                VALUES (
+                                    @ViajeID, @NroAsiento, @DniPasajero, @NombrePasajero, 
+                                    @PrecioFinal, GETDATE(), @CajaTurnoID, @MetodoPago, @NumeroOperacion
+                                );";
+
+                            foreach (var pas in listaPasajeros)
+                            {
+                                using (var cmdAsiento = new SqlCommand(sqlActualizarAsiento, connection, transaction))
+                                {
+                                    cmdAsiento.Parameters.Add("@ViajeID", SqlDbType.Int).Value = viajeId;
+                                    cmdAsiento.Parameters.Add("@NroAsiento", SqlDbType.Int).Value = pas.NroAsiento;
+                                    cmdAsiento.ExecuteNonQuery();
+                                }
+
+                                using (var cmdBoleto = new SqlCommand(sqlInsertBoleto, connection, transaction))
+                                {
+                                    cmdBoleto.Parameters.Add("@ViajeID", SqlDbType.Int).Value = viajeId;
+                                    cmdBoleto.Parameters.Add("@NroAsiento", SqlDbType.Int).Value = pas.NroAsiento;
+                                    cmdBoleto.Parameters.Add("@DniPasajero", SqlDbType.NVarChar, 8).Value = pas.Dni;
+                                    cmdBoleto.Parameters.Add("@NombrePasajero", SqlDbType.NVarChar, 100).Value = pas.Nombres;
+
+                                    var pPrecio = cmdBoleto.Parameters.Add("@PrecioFinal", SqlDbType.Decimal);
+                                    pPrecio.Precision = 18;
+                                    pPrecio.Scale = 2;
+                                    pPrecio.Value = pas.Precio;
+
+                                    cmdBoleto.Parameters.Add("@CajaTurnoID", SqlDbType.Int).Value = cajaTurnoId;
+                                    cmdBoleto.Parameters.Add("@MetodoPago", SqlDbType.VarChar, 30).Value = metodoPago;
+                                    cmdBoleto.Parameters.Add("@NumeroOperacion", SqlDbType.VarChar, 50).Value = (object?)nroOp ?? DBNull.Value;
+
+                                    cmdBoleto.ExecuteNonQuery();
+                                }
+                            }
+                        }
+
+                        if (esSoloEnc || incEnc)
+                        {
+                            const string sqlInsertEncomienda = @"
+                                INSERT INTO dbo.Encomiendas (
+                                    ViajeID, CajaTurnoID, Descripcion, PesoKg, CostoCarga, 
+                                    FechaRecepcion, RemitenteTipoDoc, RemitenteDoc, RemitenteNombre, RemitenteTelefono,
+                                    DestinatarioTipoDoc, DestinatarioDoc, DestinatarioNombre, DestinatarioTelefono,
+                                    ModalidadEntrega, DireccionEntrega, RecargoDelivery, MetodoPago, NumeroOperacion
+                                ) 
+                                VALUES (
+                                    @ViajeID, @CajaTurnoID, @Descripcion, @PesoKg, @CostoCarga, 
+                                    GETDATE(), @RemitenteTipoDoc, @RemitenteDoc, @RemitenteNombre, @RemitenteTelefono,
+                                    @DestinatarioTipoDoc, @DestinatarioDoc, @DestinatarioNombre, @DestinatarioTelefono,
+                                    @ModalidadEntrega, @DireccionEntrega, @RecargoDelivery, @MetodoPago, @NumeroOperacion
+                                );";
+
+                            using var cmdEnc = new SqlCommand(sqlInsertEncomienda, connection, transaction);
+                            cmdEnc.Parameters.Add("@ViajeID", SqlDbType.Int).Value = viajeId > 0 ? (object)viajeId : DBNull.Value;
+                            cmdEnc.Parameters.Add("@CajaTurnoID", SqlDbType.Int).Value = cajaTurnoId;
+                            cmdEnc.Parameters.Add("@Descripcion", SqlDbType.NVarChar, 150).Value = descEnc;
+
+                            var pPeso = cmdEnc.Parameters.Add("@PesoKg", SqlDbType.Decimal);
+                            pPeso.Precision = 10;
+                            pPeso.Scale = 2;
+                            pPeso.Value = pesoEnc;
+
+                            var pCosto = cmdEnc.Parameters.Add("@CostoCarga", SqlDbType.Decimal);
+                            pCosto.Precision = 18;
+                            pCosto.Scale = 2;
+                            pCosto.Value = costoEnc;
+
+                            cmdEnc.Parameters.Add("@RemitenteTipoDoc", SqlDbType.VarChar, 10).Value = remTipoDoc;
+                            cmdEnc.Parameters.Add("@RemitenteDoc", SqlDbType.VarChar, 15).Value = (object?)remDoc ?? DBNull.Value;
+                            cmdEnc.Parameters.Add("@RemitenteNombre", SqlDbType.VarChar, 120).Value = (object?)remNombre ?? DBNull.Value;
+                            cmdEnc.Parameters.Add("@RemitenteTelefono", SqlDbType.VarChar, 15).Value = (object?)remTel ?? DBNull.Value;
+
+                            cmdEnc.Parameters.Add("@DestinatarioTipoDoc", SqlDbType.VarChar, 10).Value = destTipoDoc;
+                            cmdEnc.Parameters.Add("@DestinatarioDoc", SqlDbType.VarChar, 15).Value = (object?)destDoc ?? DBNull.Value;
+                            cmdEnc.Parameters.Add("@DestinatarioNombre", SqlDbType.VarChar, 120).Value = (object?)destNombre ?? DBNull.Value;
+                            cmdEnc.Parameters.Add("@DestinatarioTelefono", SqlDbType.VarChar, 15).Value = (object?)destTel ?? DBNull.Value;
+
+                            cmdEnc.Parameters.Add("@ModalidadEntrega", SqlDbType.VarChar, 30).Value = modEntrega;
+                            cmdEnc.Parameters.Add("@DireccionEntrega", SqlDbType.VarChar, 200).Value = (object?)dirEntrega ?? DBNull.Value;
+
+                            var pRecargo = cmdEnc.Parameters.Add("@RecargoDelivery", SqlDbType.Decimal);
+                            pRecargo.Precision = 10;
+                            pRecargo.Scale = 2;
+                            pRecargo.Value = recDelivery;
+
+                            cmdEnc.Parameters.Add("@MetodoPago", SqlDbType.VarChar, 30).Value = metodoPago;
+                            cmdEnc.Parameters.Add("@NumeroOperacion", SqlDbType.VarChar, 50).Value = (object?)nroOp ?? DBNull.Value;
+
+                            cmdEnc.ExecuteNonQuery();
+                        }
+
+                        const string sqlActualizarCaja = @"
+                            UPDATE dbo.CajasTurno 
+                            SET MontoActual = MontoActual + @TotalVenta 
+                            WHERE CajaTurnoID = @CajaTurnoID;";
+
+                        using (var cmdCaja = new SqlCommand(sqlActualizarCaja, connection, transaction))
+                        {
+                            var pTotal = cmdCaja.Parameters.Add("@TotalVenta", SqlDbType.Decimal);
+                            pTotal.Precision = 18;
+                            pTotal.Scale = 2;
+                            pTotal.Value = totalVenta;
+
+                            cmdCaja.Parameters.Add("@CajaTurnoID", SqlDbType.Int).Value = cajaTurnoId;
+
+                            cmdCaja.ExecuteNonQuery();
+                        }
+
+                        transaction.Commit();
+                    }
+                    catch
+                    {
+                        transaction.Rollback();
+                        throw;
+                    }
+                });
+
+                SaldoCajaActual += totalVenta;
+
+                string detallePago = metodoPago == "Efectivo"
+                    ? $"Método de Pago: Efectivo (Entregado: S/. {montoRecibido:N2} | Vuelto: S/. {vuelto:N2})"
+                    : $"Método de Pago: {metodoPago}" + (string.IsNullOrWhiteSpace(nroOp) ? "" : $" (Ref: {nroOp})");
+
+                string mensaje;
+                if (esSoloEnc)
+                {
+                    string modalidad = modEntrega == "Domicilio" ? "Entrega a Domicilio (+S/. 10.00)" : "Recojo en Agencia";
+                    mensaje = $"¡DESPACHO DE ENCOMIENDA CONFIRMADO CON ÉXITO!\n\nModalidad: {modalidad}\nTotal Pagado: S/. {totalVenta:N2}\nNuevo Saldo en Caja: S/. {SaldoCajaActual:N2}\n{detallePago}";
+                }
+                else
+                {
+                    string asientos = string.Join("\n", listaPasajeros.Select(p => $"• Asiento #{p.NroAsiento} (Piso {p.Piso}): {p.Nombres} - DNI: {p.Dni} (S/. {p.Precio:N2})"));
+                    mensaje = $"¡VENTA CONFIRMADA CON ÉXITO!\n\nBoletos Emitidos:\n{asientos}\n\nTotal Pagado: S/. {totalVenta:N2}\nNuevo Saldo en Caja: S/. {SaldoCajaActual:N2}\n{detallePago}";
+                }
+
+                MessageBox.Show(mensaje, "Emisión Exitosa", MessageBoxButton.OK, MessageBoxImage.Information);
+                LimpiarBusqueda();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error al procesar la venta en la base de datos:\n{ex.Message}",
+                                "Error de Transacción",
+                                MessageBoxButton.OK,
+                                MessageBoxImage.Error);
+            }
         }
 
         private void AplicarMontoRapido(string? valor)
@@ -1073,7 +1280,7 @@ namespace SistemaTransportes
             }
             else if (valor != null && valor.StartsWith("+") && decimal.TryParse(valor.Substring(1), out decimal suma))
             {
-                MontoRecibido += suma;
+                MontoRecibido = (MontoRecibido ?? TotalVenta) + suma;
             }
             else if (decimal.TryParse(valor, out decimal montoFijo))
             {
