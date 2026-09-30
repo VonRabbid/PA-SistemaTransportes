@@ -1003,13 +1003,15 @@
                                                         <!-- Botón Dinámico Comprar / Seleccionar Viaje -->
                                                         <Button Command="{Binding DataContext.SeleccionarViajeCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                                                 CommandParameter="{Binding}"
+                                                                IsEnabled="{Binding SalidaDisponible}"
                                                                 FontFamily="Segoe UI" FontWeight="Bold" FontSize="12.5"
-                                                                Cursor="Hand" Padding="18,6" HorizontalAlignment="Right">
+                                                                Padding="18,6" HorizontalAlignment="Right">
                                                             <Button.Style>
                                                                 <Style TargetType="Button">
                                                                     <Setter Property="Content" Value="Comprar" />
                                                                     <Setter Property="Foreground" Value="White" />
                                                                     <Setter Property="Background" Value="{StaticResource TealBrush}" />
+                                                                    <Setter Property="Cursor" Value="Hand" />
                                                                     <Setter Property="Template">
                                                                         <Setter.Value>
                                                                             <ControlTemplate TargetType="Button">
@@ -1031,6 +1033,13 @@
                                                                         <DataTrigger Binding="{Binding DataContext.EsSoloEncomienda, RelativeSource={RelativeSource AncestorType=Window}}" Value="True">
                                                                             <Setter Property="Content" Value="Seleccionar Viaje" />
                                                                             <Setter Property="Background" Value="{StaticResource PrimaryAccentBrush}" />
+                                                                        </DataTrigger>
+                                                                        <DataTrigger Binding="{Binding SalidaDisponible}" Value="False">
+                                                                            <Setter Property="Background" Value="#E2E8F0" />
+                                                                            <Setter Property="Foreground" Value="#A0AEC0" />
+                                                                            <Setter Property="Content" Value="Horario no disponible" />
+                                                                            <Setter Property="Cursor" Value="No" />
+                                                                            <Setter Property="ForceCursor" Value="True" />
                                                                         </DataTrigger>
                                                                     </Style.Triggers>
                                                                 </Style>

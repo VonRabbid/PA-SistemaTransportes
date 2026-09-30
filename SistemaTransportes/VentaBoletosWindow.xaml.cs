@@ -234,6 +234,21 @@ namespace SistemaTransportes
         public DateTime FechaHoraLlegada { get; set; } = DateTime.Today.AddHours(15).AddMinutes(30);
         public decimal PrecioBase { get; set; } = 65.00m;
 
+        public bool SalidaVencida => FechaHoraSalida < DateTime.Now;
+        public bool SalidaDisponible => !SalidaVencida;
+
+        public string TextoBotonAccion
+        {
+            get
+            {
+                if (SalidaVencida)
+                    return "Horario no disponible";
+
+                // Respeta si es solo encomienda o venta de pasaje
+                return "Comprar";
+            }
+        }
+
         public string RutaTexto => $"{Origen} ➔ {Destino}";
         public string SalidaCompletaTexto => $"Salida: {HoraSalidaTexto} ({RutaTexto})";
     }
@@ -1268,6 +1283,16 @@ namespace SistemaTransportes
         private void SeleccionarViaje(ViajeItemViewModel? viaje)
         {
             if (viaje == null) return;
+            if (viaje.SalidaVencida)
+            {
+                MessageBox.Show(
+                    $"El bus programado para las {viaje.HoraSalidaTexto} ya partió o su horario de venta está cerrado.",
+                    "Salida no disponible",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+                return;
+            }
+
             ViajeSeleccionado = viaje;
             MostrarMapaAsientos = true;
             AsientosSeleccionados.Clear();
