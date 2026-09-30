@@ -234,6 +234,9 @@ namespace SistemaTransportes
         public DateTime FechaHoraLlegada { get; set; } = DateTime.Today.AddHours(15).AddMinutes(30);
         public decimal PrecioBase { get; set; } = 65.00m;
 
+        public bool EsIdaYVuelta { get; set; }
+        public string EtiquetaTarifa => EsIdaYVuelta ? "Por Pasajero (Ida y Vuelta)" : "Por Pasajero";
+
         public bool SalidaVencida => FechaHoraSalida < DateTime.Now;
         public bool SalidaDisponible => !SalidaVencida;
 
@@ -329,7 +332,16 @@ namespace SistemaTransportes
         public DateTime? FechaVuelta
         {
             get => _fechaVuelta;
-            set => SetProperty(ref _fechaVuelta, value);
+            set
+            {
+                if (SetProperty(ref _fechaVuelta, value))
+                {
+                    if (MostrarResultadosViajes)
+                    {
+                        BuscarViajes();
+                    }
+                }
+            }
         }
 
         // --- Navegación entre Paneles del Centro ---
@@ -1194,6 +1206,10 @@ namespace SistemaTransportes
                 cmd.Parameters.Add("@Origen", SqlDbType.NVarChar, 50).Value = (object?)origen ?? DBNull.Value;
                 cmd.Parameters.Add("@Destino", SqlDbType.NVarChar, 50).Value = (object?)destino ?? DBNull.Value;
 
+                bool esIdaYVuelta = FechaVuelta.HasValue;
+                // Factor promocional de retorno: 1.75x (75% adicional por el viaje de vuelta, otorgando 25% de descuento en el tramo de regreso)
+                decimal factorTarifa = esIdaYVuelta ? 1.75m : 1.00m;
+
                 using var reader = cmd.ExecuteReader();
                 while (reader.Read())
                 {
@@ -1207,6 +1223,8 @@ namespace SistemaTransportes
                     string duracionEstimada = reader.IsDBNull(7) ? "" : reader.GetString(7);
                     decimal precioBase = reader.GetDecimal(8);
                     string placa = reader.GetString(9);
+
+                    decimal precioCalculado = Math.Round(precioBase * factorTarifa, 2);
 
                     DateTime fechaSalidaAjustada = new DateTime(
                         fechaBase.Year, fechaBase.Month, fechaBase.Day,
@@ -1238,7 +1256,8 @@ namespace SistemaTransportes
                         Duracion = duracion,
                         FechaHoraSalida = fechaSalidaAjustada,
                         FechaHoraLlegada = fechaLlegadaAjustada,
-                        PrecioBase = precioBase
+                        PrecioBase = precioCalculado,
+                        EsIdaYVuelta = esIdaYVuelta
                     });
                 }
 
@@ -1255,6 +1274,8 @@ namespace SistemaTransportes
 
         private void LimpiarBusqueda()
         {
+            MostrarResultadosViajes = false;
+            MostrarMapaAsientos = false;
             OrigenSeleccionado = null;
             DestinoSeleccionado = null;
             FechaIda = DateTime.Today;

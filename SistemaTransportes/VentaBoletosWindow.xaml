@@ -993,7 +993,7 @@
                                                     <StackPanel Grid.Column="3" HorizontalAlignment="Right" VerticalAlignment="Center">
                                                         <!-- Modo Pasajes: Precio por Pasajero -->
                                                         <StackPanel Visibility="{Binding DataContext.EsModoPasajeConEquipaje, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisConverter}}">
-                                                            <TextBlock Text="Por Pasajero" FontFamily="Segoe UI" FontSize="10"
+                                                            <TextBlock Text="{Binding EtiquetaTarifa}" FontFamily="Segoe UI" FontSize="10"
                                                                        Foreground="{StaticResource TextSecondaryBrush}" HorizontalAlignment="Right" />
                                                             <TextBlock Text="{Binding PrecioBase, Converter={StaticResource CurrencyConverter}}"
                                                                        FontFamily="Segoe UI" FontWeight="Bold" FontSize="17"
