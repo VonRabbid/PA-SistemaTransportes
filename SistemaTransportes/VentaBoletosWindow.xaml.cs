@@ -299,10 +299,38 @@ namespace SistemaTransportes
             set => SetProperty(ref _destinoSeleccionado, value);
         }
 
-        public DateTime? FechaIda { get; set; } = DateTime.Today;
+        private DateTime? _fechaIda = DateTime.Today;
+        public DateTime? FechaIda
+        {
+            get => _fechaIda ?? DateTime.Today;
+            set
+            {
+                var valor = value ?? DateTime.Today;
+                if (SetProperty(ref _fechaIda, valor))
+                {
+                    OnPropertyChanged(nameof(FechaVueltaMinima));
+                    if (FechaVuelta.HasValue && FechaVuelta.Value < valor)
+                    {
+                        FechaVuelta = null;
+                    }
+                }
+            }
+        }
+
         public DateTime FechaMinima { get; } = DateTime.Today;
-        public DateTime? FechaVuelta { get; set; }
-        public DateTime FechaVueltaMinima { get; } = DateTime.Today;
+
+        public DateTime FechaVueltaMinima
+        {
+            get => FechaIda ?? DateTime.Today;
+            set { }
+        }
+
+        private DateTime? _fechaVuelta;
+        public DateTime? FechaVuelta
+        {
+            get => _fechaVuelta;
+            set => SetProperty(ref _fechaVuelta, value);
+        }
 
         // --- Navegación entre Paneles del Centro ---
         private bool _mostrarResultadosViajes;
@@ -1229,6 +1257,8 @@ namespace SistemaTransportes
         {
             OrigenSeleccionado = null;
             DestinoSeleccionado = null;
+            FechaIda = DateTime.Today;
+            FechaVuelta = null;
             ViajesDisponibles.Clear();
             ViajeSeleccionado = null;
             MostrarResultadosViajes = false;
