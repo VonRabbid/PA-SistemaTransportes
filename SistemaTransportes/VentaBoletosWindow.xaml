@@ -1901,7 +1901,7 @@
                                 <RadioButton Content="Solo Envío de Encomienda (Sin Pasaje)"
                                              IsChecked="{Binding EsSoloEncomienda, Mode=TwoWay}"
                                              FontFamily="Segoe UI" FontWeight="SemiBold" FontSize="12"
-                                             Foreground="{StaticResource TealBrush}" Cursor="Hand" />
+                                             Foreground="{StaticResource TealBrush}" Cursor="Hand" Checked="RadioButton_Checked" />
                             </StackPanel>
                         </Border>
 

@@ -70,6 +70,11 @@ namespace SistemaTransportes
                 tb.Focus();
             }
         }
+
+        private void RadioButton_Checked(object sender, RoutedEventArgs e)
+        {
+
+        }
     }
 
     #region ViewModels Auxiliares
@@ -142,12 +147,11 @@ namespace SistemaTransportes
     public class PresetItemViewModel : ViewModelBase
     {
         private decimal _tarifa;
-        private string? _tarifaDisplay;
+        private decimal _tarifaPorKgActual = 3.00m;
 
-        public string Titulo { get; set; } = "";
-        public string Nombre { get; set; } = "";
-        public string Icono { get; set; } = "📦";
-        public string Descripcion { get; set; } = "";
+        public string Titulo { get; set; } = string.Empty;
+        public string Nombre { get; set; } = string.Empty;
+        public string Descripcion { get; set; } = string.Empty;
         public decimal TarifaPasajero { get; set; }
         public decimal TarifaSoloEncomienda { get; set; }
 
@@ -159,37 +163,59 @@ namespace SistemaTransportes
                 if (SetProperty(ref _tarifa, value))
                 {
                     OnPropertyChanged(nameof(TarifaDisplay));
+                    OnPropertyChanged(nameof(DisplayTexto));
                 }
             }
         }
 
         public decimal PesoRef { get; set; }
         public bool EsPersonalizado { get; set; }
+        public string Icono { get; set; } = "📦";
 
-        public string TarifaDisplay
+        public decimal TarifaPorKgActual
         {
-            get => _tarifaDisplay ?? (EsPersonalizado ? "S/. 3.00 / Kg" : $"S/. {Tarifa:N2}");
-            set => SetProperty(ref _tarifaDisplay, value);
+            get => _tarifaPorKgActual;
+            set => SetProperty(ref _tarifaPorKgActual, value);
         }
+
+        public string TarifaDisplay => EsPersonalizado
+            ? $"S/. {TarifaPorKgActual:N2} / Kg"
+            : $"S/. {Tarifa:N2}";
+
+        public string PesoRefDisplay => EsPersonalizado
+            ? "Balanza manual (máx. 50 kg)"
+            : $"{PesoRef:0.#} kg ref.";
+
+        public string DisplayTexto => EsPersonalizado
+            ? $"{Icono} {Nombre} — S/. {TarifaPorKgActual:N2} / Kg"
+            : $"{Icono} {Nombre} — S/. {Tarifa:N2} ({PesoRef:0.#} kg ref.)";
 
         public void ActualizarModo(bool esSoloEncomienda)
         {
+            TarifaPorKgActual = esSoloEncomienda ? 4.00m : 3.00m;
             Tarifa = esSoloEncomienda ? TarifaSoloEncomienda : TarifaPasajero;
-            _tarifaDisplay = EsPersonalizado
-                ? $"S/. {(esSoloEncomienda ? 4.00m : 3.00m):N2} / Kg"
-                : $"S/. {Tarifa:N2}";
             OnPropertyChanged(nameof(TarifaDisplay));
+            OnPropertyChanged(nameof(DisplayTexto));
         }
 
         public bool CoincideCon(string texto)
         {
-            if (string.IsNullOrWhiteSpace(texto)) return false;
+            if (string.IsNullOrWhiteSpace(texto))
+            {
+                return false;
+            }
+
             string t = texto.Trim();
+
             return string.Equals(Nombre, t, StringComparison.OrdinalIgnoreCase)
                 || string.Equals(Titulo, t, StringComparison.OrdinalIgnoreCase)
+                || Nombre.StartsWith(t, StringComparison.OrdinalIgnoreCase)
+                || Titulo.StartsWith(t, StringComparison.OrdinalIgnoreCase)
                 || Nombre.Contains(t, StringComparison.OrdinalIgnoreCase)
                 || Titulo.Contains(t, StringComparison.OrdinalIgnoreCase);
         }
+
+        public override string ToString() => DisplayTexto;
     }
 
     public class ViajeItemViewModel : ViewModelBase
@@ -326,31 +352,72 @@ namespace SistemaTransportes
                 if (SetProperty(ref _viajeSeleccionado, value))
                 {
                     OnPropertyChanged(nameof(TextoBotonContinuar));
+                    OnPropertyChanged(nameof(TerminalLlegadaDisplay));
                     CalcularLiquidacion();
                 }
             }
         }
 
         // --- Modalidad y Carga ---
-        public bool EsModoPasajeConEquipaje
+        private bool _esSoloEncomienda;
+        public bool EsSoloEncomienda
         {
-            get => true;
+            get => _esSoloEncomienda;
             set
             {
+                if (!SetProperty(ref _esSoloEncomienda, value))
+                {
+                    return;
+                }
+
                 OnPropertyChanged(nameof(EsModoPasajeConEquipaje));
-                OnPropertyChanged(nameof(EsSoloEncomienda));
+                OnPropertyChanged(nameof(TarifaPorKg));
+                OnPropertyChanged(nameof(RecargoDelivery));
+                OnPropertyChanged(nameof(TerminalLlegadaDisplay));
+                OnPropertyChanged(nameof(TextoBotonContinuarAPago));
+                OnPropertyChanged(nameof(TextoBotonVolverDePago));
+                OnPropertyChanged(nameof(TextoBotonVolverDePaso2));
+
+                foreach (var p in PresetsDisponibles)
+                {
+                    p.ActualizarModo(_esSoloEncomienda);
+                }
+
+                if (_esSoloEncomienda)
+                {
+                    if (!IncluyeEncomienda)
+                    {
+                        IncluyeEncomienda = true;
+                    }
+                    else if (PresetSeleccionado == null)
+                    {
+                        PresetSeleccionado = PresetsDisponibles.FirstOrDefault(p => p.CoincideCon("Caja Chica"))
+                                            ?? PresetsDisponibles.FirstOrDefault();
+                    }
+                    else
+                    {
+                        EncomiendaCosto = PresetSeleccionado.EsPersonalizado
+                            ? Math.Round(EncomiendaPesoKg * TarifaPorKg, 2)
+                            : PresetSeleccionado.Tarifa;
+                    }
+
+                    LimpiarSeleccionAsientos();
+                }
+                else if (PresetSeleccionado != null)
+                {
+                    EncomiendaCosto = PresetSeleccionado.EsPersonalizado
+                        ? Math.Round(EncomiendaPesoKg * TarifaPorKg, 2)
+                        : PresetSeleccionado.Tarifa;
+                }
+
+                CalcularLiquidacion();
             }
         }
 
-        public bool EsSoloEncomienda
+        public bool EsModoPasajeConEquipaje
         {
-            get => false;
-            set
-            {
-                // Bloqueado para este hito: mantener fijo el modo pasaje con equipaje
-                OnPropertyChanged(nameof(EsSoloEncomienda));
-                OnPropertyChanged(nameof(EsModoPasajeConEquipaje));
-            }
+            get => !_esSoloEncomienda;
+            set => EsSoloEncomienda = !value;
         }
 
         private bool _incluyeEncomienda;
@@ -379,13 +446,8 @@ namespace SistemaTransportes
                 }
                 else
                 {
-                    PresetSeleccionado = PresetsDisponibles.FirstOrDefault(p => p.Nombre.Contains("Caja Chica"))
-                                        ?? PresetsDisponibles[0];
-                    if (PresetSeleccionado != null)
-                    {
-                        EncomiendaCosto = 15.00m;
-                        EsCargaPersonalizada = false;
-                    }
+                    PresetSeleccionado = PresetsDisponibles.FirstOrDefault(p => p.CoincideCon("Caja Chica"))
+                                        ?? PresetsDisponibles.FirstOrDefault();
                 }
 
                 CalcularLiquidacion();
@@ -523,7 +585,7 @@ namespace SistemaTransportes
                 OnPropertyChanged(nameof(EncomiendaPesoKgTexto));
                 OnPropertyChanged(nameof(EsPesoMaximoEncomienda));
 
-                _encomiendaCosto = _presetSeleccionado.TarifaPasajero > 0 ? _presetSeleccionado.TarifaPasajero : _presetSeleccionado.Tarifa;
+                _encomiendaCosto = _presetSeleccionado.Tarifa;
                 OnPropertyChanged(nameof(EncomiendaCosto));
                 CalcularLiquidacion();
             }
@@ -675,11 +737,22 @@ namespace SistemaTransportes
         public string TerminalLlegadaDisplay => ViajeSeleccionado != null
             ? $"Agencia Central {ViajeSeleccionado.Destino} — Terminal Terrestre"
             : "Agencia Central de Destino — Terminal Terrestre";
-        public string DireccionEntrega { get; set; } = "";
-        public string ReferenciaEntrega { get; set; } = "";
+        private string _direccionEntrega = "";
+        public string DireccionEntrega
+        {
+            get => _direccionEntrega;
+            set => SetProperty(ref _direccionEntrega, value);
+        }
+
+        private string _referenciaEntrega = "";
+        public string ReferenciaEntrega
+        {
+            get => _referenciaEntrega;
+            set => SetProperty(ref _referenciaEntrega, value);
+        }
 
         // Encomienda Remitente / Destinatario
-        public ObservableCollection<string> TiposDocumentoDisponibles { get; } = new() { "DNI", "RUC", "C.E." };
+        public ObservableCollection<string> TiposDocumentoDisponibles { get; } = new() { "DNI", "RUC", "CE", "Pasaporte" };
 
         private string _remitenteTipoDoc = "DNI";
         public string RemitenteTipoDoc
@@ -693,10 +766,35 @@ namespace SistemaTransportes
                 }
             }
         }
-        public string RemitenteDoc { get; set; } = "";
-        public int RemitenteDocMaxLength => RemitenteTipoDoc == "RUC" ? 11 : 8;
-        public string RemitenteNombre { get; set; } = "";
-        public string RemitenteTelefono { get; set; } = "";
+
+        private string _remitenteDoc = "";
+        public string RemitenteDoc
+        {
+            get => _remitenteDoc;
+            set => SetProperty(ref _remitenteDoc, value);
+        }
+
+        public int RemitenteDocMaxLength => RemitenteTipoDoc switch
+        {
+            "RUC" => 11,
+            "Pasaporte" => 12,
+            "CE" or "C.E." => 12,
+            _ => 8
+        };
+
+        private string _remitenteNombre = "";
+        public string RemitenteNombre
+        {
+            get => _remitenteNombre;
+            set => SetProperty(ref _remitenteNombre, value);
+        }
+
+        private string _remitenteTelefono = "";
+        public string RemitenteTelefono
+        {
+            get => _remitenteTelefono;
+            set => SetProperty(ref _remitenteTelefono, value);
+        }
 
         private string _destinatarioTipoDoc = "DNI";
         public string DestinatarioTipoDoc
@@ -710,18 +808,62 @@ namespace SistemaTransportes
                 }
             }
         }
-        public string DestinatarioDoc { get; set; } = "";
-        public int DestinatarioDocMaxLength => DestinatarioTipoDoc == "RUC" ? 11 : 8;
-        public string DestinatarioNombre { get; set; } = "";
-        public string DestinatarioTelefono { get; set; } = "";
+
+        private string _destinatarioDoc = "";
+        public string DestinatarioDoc
+        {
+            get => _destinatarioDoc;
+            set => SetProperty(ref _destinatarioDoc, value);
+        }
+
+        public int DestinatarioDocMaxLength => DestinatarioTipoDoc switch
+        {
+            "RUC" => 11,
+            "Pasaporte" => 12,
+            "CE" or "C.E." => 12,
+            _ => 8
+        };
+
+        private string _destinatarioNombre = "";
+        public string DestinatarioNombre
+        {
+            get => _destinatarioNombre;
+            set => SetProperty(ref _destinatarioNombre, value);
+        }
+
+        private string _destinatarioTelefono = "";
+        public string DestinatarioTelefono
+        {
+            get => _destinatarioTelefono;
+            set => SetProperty(ref _destinatarioTelefono, value);
+        }
 
         // --- Liquidación de Venta ---
 
-        public decimal TotalBoletos => AsientosSeleccionados.Count * (ViajeSeleccionado?.PrecioBase ?? 0m);
+        public decimal TotalBoletos => EsSoloEncomienda ? 0.00m : AsientosSeleccionados.Count * (ViajeSeleccionado?.PrecioBase ?? 0m);
         public decimal TotalVenta => TotalBoletos + (EsSoloEncomienda || IncluyeEncomienda ? EncomiendaCosto + RecargoDelivery : 0m);
 
-        public bool PuedeContinuarAPasajeros => AsientosSeleccionados.Count > 0 || EsSoloEncomienda;
-        public string TextoBotonContinuar => EsSoloEncomienda ? "Continuar a Guía de Encomienda ➔" : (AsientosSeleccionados.Count > 0 ? $"Continuar con {AsientosSeleccionados.Count} pasajero(s) ➔" : "Seleccione al menos 1 asiento");
+        public bool PuedeContinuarAPasajeros => EsSoloEncomienda
+            ? (ViajeSeleccionado != null && IncluyeEncomienda && TotalVenta > 0m)
+            : AsientosSeleccionados.Count >= 1;
+
+        public string TextoBotonContinuar
+        {
+            get
+            {
+                if (EsSoloEncomienda)
+                {
+                    return ViajeSeleccionado == null
+                        ? "Seleccione una salida de viaje para la encomienda"
+                        : $"Continuar a Guía de Despacho (S/. {TotalVenta:N2}) ➔";
+                }
+
+                return AsientosSeleccionados.Count == 0
+                    ? "Seleccione al menos 1 asiento"
+                    : $"Continuar con Datos de Pasajeros ({AsientosSeleccionados.Count} Asiento{(AsientosSeleccionados.Count > 1 ? "s" : "")}) ➔";
+            }
+        }
+
         public string TextoBotonVolverDePaso2 => "← Volver a Selección de Viaje";
         public string TextoBotonContinuarAPago => EsSoloEncomienda
             ? $"Continuar a Liquidación y Pago (S/. {TotalVenta:N2}) ➔"
@@ -1086,6 +1228,16 @@ namespace SistemaTransportes
             MetodoPagoSeleccionado = "Efectivo";
             MontoRecibido = null;
             NroOperacion = "";
+            RemitenteDoc = "";
+            RemitenteNombre = "";
+            RemitenteTelefono = "";
+            DestinatarioDoc = "";
+            DestinatarioNombre = "";
+            DestinatarioTelefono = "";
+            DireccionEntrega = "";
+            ReferenciaEntrega = "";
+            ModalidadEntrega = "Agencia";
+            EsSoloEncomienda = false;
             IncluyeEncomienda = false;
             PresetSeleccionado = PresetsDisponibles.FirstOrDefault();
             CalcularLiquidacion();
@@ -1117,7 +1269,7 @@ namespace SistemaTransportes
         {
             if (viaje == null) return;
             ViajeSeleccionado = viaje;
-            MostrarMapaAsientos = !EsSoloEncomienda;
+            MostrarMapaAsientos = true;
             AsientosSeleccionados.Clear();
 
             if (!EsSoloEncomienda)
@@ -1209,8 +1361,28 @@ namespace SistemaTransportes
             CargarAsientos();
         }
 
+        public void LimpiarSeleccionAsientos()
+        {
+            foreach (var a in AsientosSeleccionados)
+            {
+                a.Estado = "Libre";
+            }
+
+            AsientosSeleccionados.Clear();
+            Pasajeros.Clear();
+            CalcularLiquidacion();
+        }
+
         private void ToggleAsiento(AsientoItemViewModel asiento)
         {
+            if (EsSoloEncomienda)
+            {
+                MessageBox.Show(
+                    "El modo 'Solo Envío de Encomienda' está activo. La carga viaja en bodega y no requiere selección de asientos.",
+                    "Aviso", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
             if (asiento.Estado == "Ocupado") return;
 
             if (asiento.Estado == "Seleccionado")
@@ -1229,8 +1401,6 @@ namespace SistemaTransportes
                 AsientosSeleccionados.Add(asiento);
             }
 
-            OnPropertyChanged(nameof(TextoBotonContinuar));
-            OnPropertyChanged(nameof(PuedeContinuarAPasajeros));
             CalcularLiquidacion();
         }
 
@@ -1256,10 +1426,8 @@ namespace SistemaTransportes
                     return;
                 }
                 MostrarPanelViajes = false;
-                MostrarPanelPasajeros = false;
-                MostrarPanelPago = true;
-                MontoRecibido = TotalVenta;
-                CalcularLiquidacion();
+                MostrarPanelPasajeros = true;
+                MostrarPanelPago = false;
                 return;
             }
 
@@ -1346,14 +1514,6 @@ namespace SistemaTransportes
 
         private void VolverAPasajeros()
         {
-            if (EsSoloEncomienda)
-            {
-                MostrarPanelPago = false;
-                MostrarPanelPasajeros = false;
-                MostrarPanelViajes = true;
-                return;
-            }
-
             MostrarPanelPago = false;
             MostrarPanelPasajeros = true;
             MostrarPanelViajes = false;
@@ -1644,6 +1804,8 @@ namespace SistemaTransportes
             OnPropertyChanged(nameof(TextoBotonConfirmarPago));
             OnPropertyChanged(nameof(TextoBotonFooterConfirmar));
             OnPropertyChanged(nameof(TextoBotonVolverDePago));
+            OnPropertyChanged(nameof(TextoBotonVolverDePaso2));
+            CommandManager.InvalidateRequerySuggested();
         }
 
         private void CerrarSesion()
