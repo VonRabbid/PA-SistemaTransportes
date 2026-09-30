@@ -3,7 +3,9 @@ using System.Configuration;
 using System.Data;
 using System.Security.Cryptography;
 using System.Text;
+using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Input;
 using Microsoft.Data.SqlClient;
 
 namespace SistemaTransportes
@@ -16,6 +18,19 @@ namespace SistemaTransportes
         public MainWindow()
         {
             InitializeComponent();
+            // Precalienta el socket TLS y el Connection Pool hacia Azure SQL en segundo plano
+            _ = Task.Run(() =>
+            {
+                try
+                {
+                    using var conn = new SqlConnection(ObtenerCadenaConexion());
+                    conn.Open();
+                }
+                catch
+                {
+                    // Silencioso: si no hay red inmediata, el login regular gestionará la excepción
+                }
+            });
         }
 
         private void BtnAccesoRapido_Click(object sender, RoutedEventArgs e)
@@ -24,7 +39,7 @@ namespace SistemaTransportes
             txtPassword.Password = "1598753";
         }
 
-        private void BtnIngresar_Click(object sender, RoutedEventArgs e)
+        private async void BtnIngresar_Click(object sender, RoutedEventArgs e)
         {
             string username = txtUsuario.Text.Trim();
             string password = txtPassword.Password;
@@ -42,40 +57,55 @@ namespace SistemaTransportes
             // 2. Cálculo del hash SHA-256 en mayúsculas (equivalente a HASHBYTES('SHA2_256', ...) en SQL)
             string passwordHash = CalcularSha256(password);
 
+            btnIngresar.IsEnabled = false;
+            Mouse.OverrideCursor = Cursors.Wait;
+
             try
             {
                 string connectionString = ObtenerCadenaConexion();
 
-                using var connection = new SqlConnection(connectionString);
-                connection.Open();
+                await using var connection = new SqlConnection(connectionString);
+                await connection.OpenAsync();
 
-                // 3. Consulta parametrizada a dbo.Usuarios
-                const string queryUsuario = @"
-                    SELECT UsuarioID, ISNULL(Nombres, Username) AS Nombres
-                    FROM dbo.Usuarios
-                    WHERE Username = @Username 
-                      AND PasswordHash = @PasswordHash 
-                      AND Activo = 1;";
+                // 3. Consulta unificada de autenticación y turno de caja en un único roundtrip de red
+                const string queryAuth = @"
+                    SELECT 
+                        u.UsuarioID, 
+                        ISNULL(u.Nombres, u.Username) AS Nombres,
+                        (
+                            SELECT TOP 1 c.CajaTurnoID 
+                            FROM dbo.CajasTurno c 
+                            WHERE c.UsuarioID = u.UsuarioID 
+                              AND c.Estado IN ('Abierto', 'Abierta')
+                            ORDER BY c.CajaTurnoID DESC
+                        ) AS CajaTurnoID
+                    FROM dbo.Usuarios u
+                    WHERE u.Username = @Username 
+                      AND u.PasswordHash = @PasswordHash 
+                      AND u.Activo = 1;";
 
                 int usuarioId = 0;
                 string nombres = string.Empty;
+                int cajaTurnoId = 0;
 
-                using (var cmdUsuario = new SqlCommand(queryUsuario, connection))
+                using (var cmd = new SqlCommand(queryAuth, connection))
                 {
-                    cmdUsuario.Parameters.Add("@Username", SqlDbType.NVarChar, 40).Value = username;
-                    cmdUsuario.Parameters.Add("@PasswordHash", SqlDbType.NVarChar, 256).Value = passwordHash;
+                    cmd.Parameters.Add("@Username", SqlDbType.NVarChar, 40).Value = username;
+                    cmd.Parameters.Add("@PasswordHash", SqlDbType.NVarChar, 256).Value = passwordHash;
 
-                    using var reader = cmdUsuario.ExecuteReader();
-                    if (reader.Read())
+                    using var reader = await cmd.ExecuteReaderAsync();
+                    if (await reader.ReadAsync())
                     {
                         usuarioId = reader.GetInt32(0);
                         nombres = reader.GetString(1);
+                        cajaTurnoId = reader.IsDBNull(2) ? 0 : reader.GetInt32(2);
                     }
                 }
 
                 // 4. Validación de existencia del usuario
                 if (usuarioId == 0)
                 {
+                    Mouse.OverrideCursor = null;
                     MessageBox.Show("Usuario o contraseña incorrectos.", 
                                     "Error de Autenticación", 
                                     MessageBoxButton.OK, 
@@ -83,33 +113,14 @@ namespace SistemaTransportes
                     return;
                 }
 
-                // 5. Consulta del turno de caja activo en dbo.CajasTurno
-                const string queryCaja = @"
-                    SELECT TOP 1 CajaTurnoID
-                    FROM dbo.CajasTurno
-                    WHERE UsuarioID = @UsuarioID 
-                      AND Estado IN ('Abierto', 'Abierta')
-                    ORDER BY CajaTurnoID DESC;";
-
-                int cajaTurnoId = 0;
-                using (var cmdCaja = new SqlCommand(queryCaja, connection))
-                {
-                    cmdCaja.Parameters.Add("@UsuarioID", SqlDbType.Int).Value = usuarioId;
-
-                    var resultadoCaja = cmdCaja.ExecuteScalar();
-                    if (resultadoCaja != null && resultadoCaja != DBNull.Value)
-                    {
-                        cajaTurnoId = Convert.ToInt32(resultadoCaja);
-                    }
-                }
-
-                // 6. Mensaje de bienvenida con autorización
+                // 5. Mensaje de bienvenida con autorización
+                Mouse.OverrideCursor = null;
                 MessageBox.Show($"¡Bienvenido al sistema, {nombres}! Turno de caja #{cajaTurnoId} activo.", 
                                 "Acceso Autorizado", 
                                 MessageBoxButton.OK, 
                                 MessageBoxImage.Information);
 
-                // 7. Navegación a la ventana de venta de boletos
+                // 6. Navegación a la ventana de venta de boletos
                 try
                 {
                     var session = new UsuarioSessionModel
@@ -133,6 +144,7 @@ namespace SistemaTransportes
             }
             catch (SqlException ex)
             {
+                Mouse.OverrideCursor = null;
                 MessageBox.Show($"Error de conexión con la base de datos SQL Server:\n{ex.Message}", 
                                 "Error de Conexión", 
                                 MessageBoxButton.OK, 
@@ -140,10 +152,16 @@ namespace SistemaTransportes
             }
             catch (Exception ex)
             {
+                Mouse.OverrideCursor = null;
                 MessageBox.Show($"Ocurrió un error inesperado al procesar la autenticación:\n{ex.Message}", 
                                 "Error", 
                                 MessageBoxButton.OK, 
                                 MessageBoxImage.Error);
+            }
+            finally
+            {
+                btnIngresar.IsEnabled = true;
+                Mouse.OverrideCursor = null;
             }
         }
 
