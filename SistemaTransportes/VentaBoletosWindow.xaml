@@ -1,4 +1,4 @@
-﻿<Window x:Class="SistemaTransportes.VentaBoletosWindow"
+<Window x:Class="SistemaTransportes.VentaBoletosWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
@@ -2091,6 +2091,59 @@
                                                FontFamily="Segoe UI" FontWeight="Bold" FontSize="16"
                                                Foreground="{StaticResource ContrastOrangeBrush}" HorizontalAlignment="Right" />
                                 </Grid>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Tarjeta de Historial y Auditoría de Caja -->
+                        <Border Background="#FFFFFF" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1"
+                                CornerRadius="8" Padding="14" Margin="0,0,0,16">
+                            <StackPanel>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                                    <fa:IconImage Icon="ClockRotateLeft" Width="16" Height="16" Foreground="{StaticResource PrimaryBrush}" Margin="0,0,8,0" VerticalAlignment="Center" />
+                                    <TextBlock Text="Historial y Auditoría de Caja"
+                                               FontFamily="Segoe UI" FontWeight="Bold" FontSize="13"
+                                               Foreground="{StaticResource PrimaryBrush}" VerticalAlignment="Center" />
+                                </StackPanel>
+                                <TextBlock Text="Revise los boletos emitidos, encomiendas despachadas y la liquidación registrada en este turno."
+                                           FontFamily="Segoe UI" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"
+                                           TextWrapping="Wrap" Margin="0,4,0,12" />
+                                <Button Command="{Binding AbrirHistorialVentasCommand}" Height="40" Cursor="Hand">
+                                    <Button.Style>
+                                        <Style TargetType="Button">
+                                            <Setter Property="Background" Value="#F1F5F9" />
+                                            <Setter Property="BorderBrush" Value="#CBD5E0" />
+                                            <Setter Property="BorderThickness" Value="1" />
+                                            <Setter Property="Foreground" Value="#1A365D" />
+                                            <Setter Property="Template">
+                                                <Setter.Value>
+                                                    <ControlTemplate TargetType="Button">
+                                                        <Border x:Name="border" Background="{TemplateBinding Background}"
+                                                                BorderBrush="{TemplateBinding BorderBrush}"
+                                                                BorderThickness="{TemplateBinding BorderThickness}"
+                                                                CornerRadius="6" Padding="12,0">
+                                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                        </Border>
+                                                        <ControlTemplate.Triggers>
+                                                            <Trigger Property="IsMouseOver" Value="True">
+                                                                <Setter TargetName="border" Property="Background" Value="#E2E8F0" />
+                                                                <Setter TargetName="border" Property="BorderBrush" Value="#94A3B8" />
+                                                            </Trigger>
+                                                            <Trigger Property="IsPressed" Value="True">
+                                                                <Setter TargetName="border" Property="Background" Value="#CBD5E1" />
+                                                            </Trigger>
+                                                        </ControlTemplate.Triggers>
+                                                    </ControlTemplate>
+                                                </Setter.Value>
+                                            </Setter>
+                                        </Style>
+                                    </Button.Style>
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                        <fa:IconImage Icon="Receipt" Width="15" Height="15" Foreground="#1A365D" Margin="0,0,8,0" VerticalAlignment="Center" />
+                                        <TextBlock Text="Consultar Historial de Ventas"
+                                                   FontFamily="Segoe UI" FontWeight="SemiBold" FontSize="12.5"
+                                                   Foreground="#1A365D" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </Button>
                             </StackPanel>
                         </Border>
                     </StackPanel>

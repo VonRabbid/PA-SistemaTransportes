@@ -1,0 +1,320 @@
+<Window x:Class="SistemaTransportes.HistorialVentasWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:fa="http://schemas.awesome.incremented/wpf/xaml/fontawesome.sharp"
+        xmlns:local="clr-namespace:SistemaTransportes"
+        mc:Ignorable="d"
+        Title="Historial de Ventas y Auditoría de Turno"
+        Width="1050" Height="650"
+        MinWidth="950" MinHeight="550"
+        WindowStartupLocation="CenterOwner"
+        Background="{StaticResource BgGeneralBrush}"
+        FontFamily="Segoe UI">
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <!-- 0. Header con Titulo, Badges, Buscador y Boton Refrescar -->
+            <RowDefinition Height="Auto" />
+            <!-- 1. Tabs con Boletos y Encomiendas -->
+            <RowDefinition Height="*" />
+            <!-- 2. Footer con Resumen de Totales y Boton Cerrar -->
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- CABECERA -->
+        <Border Grid.Row="0" Background="#FFFFFF" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="0,0,0,1" Padding="20,14">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <!-- Fila 1: Título e Insignias / Badges Informativos -->
+                <Grid Grid.Row="0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                        <Border Background="#EBF5FB" CornerRadius="8" Width="40" Height="40" Margin="0,0,12,0">
+                            <fa:IconImage Icon="ClockRotateLeft" Width="20" Height="20" Foreground="{StaticResource PrimaryBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock Text="HISTORIAL DE VENTAS Y AUDITORÍA DE TURNO"
+                                       FontFamily="Segoe UI" FontWeight="Bold" FontSize="16" Foreground="{StaticResource PrimaryBrush}" />
+                            <TextBlock Text="Registro y control de boletos emitidos y encomiendas despachadas en tiempo real"
+                                       FontFamily="Segoe UI" FontSize="11.5" Foreground="{StaticResource TextSecondaryBrush}" />
+                        </StackPanel>
+                    </StackPanel>
+
+                    <!-- Badges informativos del turno activo -->
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                        <!-- Operador actual -->
+                        <Border Background="#EBF5FB" BorderBrush="#AED6F1" BorderThickness="1" CornerRadius="6" Padding="10,6" Margin="0,0,8,0">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <fa:IconImage Icon="User" Width="13" Height="13" Foreground="#1B4F72" Margin="0,0,6,0" VerticalAlignment="Center" />
+                                <TextBlock Text="{Binding OperadorNombre, StringFormat='Operador: {0}'}" FontFamily="Segoe UI" FontWeight="SemiBold" FontSize="11.5" Foreground="#1B4F72" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Border>
+
+                        <!-- N° Turno de Caja -->
+                        <Border Background="#FEF9E7" BorderBrush="#F9E79F" BorderThickness="1" CornerRadius="6" Padding="10,6" Margin="0,0,8,0">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <fa:IconImage Icon="CashRegister" Width="13" Height="13" Foreground="#7D6608" Margin="0,0,6,0" VerticalAlignment="Center" />
+                                <TextBlock Text="{Binding TurnoTexto, StringFormat='Turno #{0}'}" FontFamily="Segoe UI" FontWeight="SemiBold" FontSize="11.5" Foreground="#7D6608" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Saldo acumulado en caja -->
+                        <Border Background="#DEF7EC" BorderBrush="#31C48D" BorderThickness="1" CornerRadius="6" Padding="10,6">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <fa:IconImage Icon="MoneyBillWave" Width="13" Height="13" Foreground="#03543F" Margin="0,0,6,0" VerticalAlignment="Center" />
+                                <TextBlock Text="{Binding SaldoCajaTexto, StringFormat='Saldo en Caja: {0}'}" FontFamily="Segoe UI" FontWeight="Bold" FontSize="11.5" Foreground="#03543F" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </Grid>
+
+                <!-- Fila 2: Buscador en tiempo real y Botón Refrescar -->
+                <Grid Grid.Row="1" Margin="0,12,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Buscador en tiempo real -->
+                    <Grid Grid.Column="0" HorizontalAlignment="Left" Width="440" Height="36">
+                        <TextBox x:Name="TxtBusqueda"
+                                 Style="{StaticResource ModernTextBoxStyle}"
+                                 Padding="34,7,12,7"
+                                 VerticalContentAlignment="Center"
+                                 TextChanged="TxtBusqueda_TextChanged" />
+                        <fa:IconImage Icon="MagnifyingGlass" Width="14" Height="14" Foreground="#94A3B8"
+                                      HorizontalAlignment="Left" Margin="10,0,0,0" IsHitTestVisible="False" VerticalAlignment="Center" />
+                        <TextBlock x:Name="TxtPlaceholder" Text="Buscar por DNI, Pasajero o Destino..."
+                                   FontFamily="Segoe UI" FontSize="12" Foreground="#94A3B8"
+                                   Margin="34,0,0,0" VerticalAlignment="Center" IsHitTestVisible="False" />
+                    </Grid>
+
+                    <!-- Botón Refrescar y estado de carga -->
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock Text="Actualizando datos..." Visibility="{Binding EstaCargando, Converter={StaticResource BoolToVisConverter}}"
+                                   FontFamily="Segoe UI" FontSize="11.5" Foreground="{StaticResource PrimaryAccentBrush}"
+                                   Margin="0,0,12,0" VerticalAlignment="Center" />
+
+                        <Button x:Name="BtnRefrescar" Click="BtnRefrescar_Click" Height="36" Cursor="Hand" Padding="14,0" Background="#F8FAFC" BorderBrush="#CBD5E0" BorderThickness="1">
+                            <Button.Resources>
+                                <Style TargetType="Border">
+                                    <Setter Property="CornerRadius" Value="6" />
+                                </Style>
+                            </Button.Resources>
+                            <StackPanel Orientation="Horizontal">
+                                <fa:IconImage Icon="ArrowsRotate" Width="13" Height="13" Foreground="{StaticResource PrimaryBrush}" Margin="0,0,7,0" VerticalAlignment="Center" />
+                                <TextBlock Text="Refrescar" FontFamily="Segoe UI" FontWeight="SemiBold" FontSize="12" Foreground="{StaticResource PrimaryBrush}" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
+                    </StackPanel>
+                </Grid>
+            </Grid>
+        </Border>
+
+        <!-- CUERPO PRINCIPAL: TAB CONTROL CON BOLETOS Y ENCOMIENDAS -->
+        <Grid Grid.Row="1" Margin="20,12,20,12">
+            <TabControl Background="Transparent" BorderThickness="0">
+                <TabControl.Resources>
+                    <Style TargetType="TabItem">
+                        <Setter Property="Template">
+                            <Setter.Value>
+                                <ControlTemplate TargetType="TabItem">
+                                    <Border x:Name="TabBorder" CornerRadius="8,8,0,0" Padding="18,10" Margin="0,0,6,0"
+                                            Background="#E2E8F0" BorderThickness="1,1,1,0" BorderBrush="#CBD5E0">
+                                        <ContentPresenter x:Name="ContentSite"
+                                                          VerticalAlignment="Center"
+                                                          HorizontalAlignment="Center"
+                                                          ContentSource="Header"
+                                                          RecognizesAccessKey="True" />
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsSelected" Value="True">
+                                            <Setter TargetName="TabBorder" Property="Background" Value="#FFFFFF" />
+                                            <Setter TargetName="TabBorder" Property="BorderBrush" Value="#CBD5E0" />
+                                            <Setter TargetName="TabBorder" Property="Margin" Value="0,0,6,-1" />
+                                            <Setter Property="Panel.ZIndex" Value="10" />
+                                        </Trigger>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter TargetName="TabBorder" Property="Background" Value="#EDF2F7" />
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Setter.Value>
+                        </Setter>
+                    </Style>
+                </TabControl.Resources>
+
+                <!-- PESTAÑA 1: BOLETOS DE PASAJE -->
+                <TabItem>
+                    <TabItem.Header>
+                        <StackPanel Orientation="Horizontal">
+                            <fa:IconImage Icon="Ticket" Width="15" Height="15" Foreground="{StaticResource PrimaryBrush}" Margin="0,0,8,0" VerticalAlignment="Center" />
+                            <TextBlock Text="Boletos de Pasaje" FontFamily="Segoe UI" FontWeight="Bold" FontSize="13" Foreground="{StaticResource PrimaryBrush}" VerticalAlignment="Center" />
+                            <Border Background="#EBF5FB" CornerRadius="10" Padding="8,2" Margin="8,0,0,0" VerticalAlignment="Center">
+                                <TextBlock Text="{Binding BoletosFiltrados.Count, StringFormat='{}{0}'}" FontFamily="Segoe UI" FontWeight="Bold" FontSize="11" Foreground="#1B4F72" />
+                            </Border>
+                        </StackPanel>
+                    </TabItem.Header>
+
+                    <Border Background="#FFFFFF" BorderBrush="#CBD5E0" BorderThickness="1" CornerRadius="0,8,8,8" Padding="12">
+                        <Grid>
+                            <DataGrid x:Name="DgBoletos" ItemsSource="{Binding BoletosFiltrados}"
+                                      AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False"
+                                      IsReadOnly="True" GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#EDF2F7"
+                                      VerticalGridLinesBrush="Transparent" RowHeight="36" BorderThickness="1"
+                                      BorderBrush="#E2E8F0" SelectionMode="Single" SelectionUnit="FullRow">
+                                <DataGrid.ColumnHeaderStyle>
+                                    <Style TargetType="DataGridColumnHeader">
+                                        <Setter Property="Background" Value="#F8FAFC" />
+                                        <Setter Property="Foreground" Value="{StaticResource PrimaryBrush}" />
+                                        <Setter Property="FontWeight" Value="SemiBold" />
+                                        <Setter Property="FontSize" Value="12" />
+                                        <Setter Property="Padding" Value="10,8" />
+                                        <Setter Property="BorderThickness" Value="0,0,0,1" />
+                                        <Setter Property="BorderBrush" Value="#CBD5E0" />
+                                    </Style>
+                                </DataGrid.ColumnHeaderStyle>
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="N° Boleto" Binding="{Binding CodigoBoleto}" Width="95" FontWeight="SemiBold" Foreground="{StaticResource PrimaryBrush}" />
+                                    <DataGridTextColumn Header="Fecha / Hora" Binding="{Binding FechaHoraStr}" Width="130" />
+                                    <DataGridTextColumn Header="Origen - Destino" Binding="{Binding Ruta}" Width="165" />
+                                    <DataGridTextColumn Header="Asiento" Binding="{Binding AsientoStr}" Width="85" />
+                                    <DataGridTextColumn Header="Pasajero (DNI + Nombre)" Binding="{Binding PasajeroInfo}" Width="*" />
+                                    <DataGridTextColumn Header="Tarifa Final" Binding="{Binding PrecioStr}" Width="105" FontWeight="Bold" Foreground="#0E7074" />
+                                    <DataGridTextColumn Header="Método de Pago" Binding="{Binding MetodoPago}" Width="110" />
+                                    <DataGridTextColumn Header="N° Operación" Binding="{Binding OperacionStr}" Width="110" />
+                                </DataGrid.Columns>
+                            </DataGrid>
+
+                            <!-- Mensaje cuando está vacío -->
+                            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center"
+                                        Visibility="{Binding HayBoletos, Converter={StaticResource InverseBoolToVisConverter}}">
+                                <fa:IconImage Icon="Ticket" Width="40" Height="40" Foreground="#CBD5E0" Margin="0,0,0,10" HorizontalAlignment="Center" />
+                                <TextBlock Text="No se encontraron boletos emitidos en este turno."
+                                           FontFamily="Segoe UI" FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" HorizontalAlignment="Center" />
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+                </TabItem>
+
+                <!-- PESTAÑA 2: GUÍAS DE ENCOMIENDA -->
+                <TabItem>
+                    <TabItem.Header>
+                        <StackPanel Orientation="Horizontal">
+                            <fa:IconImage Icon="BoxOpen" Width="15" Height="15" Foreground="{StaticResource PrimaryBrush}" Margin="0,0,8,0" VerticalAlignment="Center" />
+                            <TextBlock Text="Guías de Encomienda" FontFamily="Segoe UI" FontWeight="Bold" FontSize="13" Foreground="{StaticResource PrimaryBrush}" VerticalAlignment="Center" />
+                            <Border Background="#FEF9E7" CornerRadius="10" Padding="8,2" Margin="8,0,0,0" VerticalAlignment="Center">
+                                <TextBlock Text="{Binding EncomiendasFiltradas.Count, StringFormat='{}{0}'}" FontFamily="Segoe UI" FontWeight="Bold" FontSize="11" Foreground="#7D6608" />
+                            </Border>
+                        </StackPanel>
+                    </TabItem.Header>
+
+                    <Border Background="#FFFFFF" BorderBrush="#CBD5E0" BorderThickness="1" CornerRadius="0,8,8,8" Padding="12">
+                        <Grid>
+                            <DataGrid x:Name="DgEncomiendas" ItemsSource="{Binding EncomiendasFiltradas}"
+                                      AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False"
+                                      IsReadOnly="True" GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#EDF2F7"
+                                      VerticalGridLinesBrush="Transparent" RowHeight="36" BorderThickness="1"
+                                      BorderBrush="#E2E8F0" SelectionMode="Single" SelectionUnit="FullRow">
+                                <DataGrid.ColumnHeaderStyle>
+                                    <Style TargetType="DataGridColumnHeader">
+                                        <Setter Property="Background" Value="#F8FAFC" />
+                                        <Setter Property="Foreground" Value="{StaticResource PrimaryBrush}" />
+                                        <Setter Property="FontWeight" Value="SemiBold" />
+                                        <Setter Property="FontSize" Value="12" />
+                                        <Setter Property="Padding" Value="10,8" />
+                                        <Setter Property="BorderThickness" Value="0,0,0,1" />
+                                        <Setter Property="BorderBrush" Value="#CBD5E0" />
+                                    </Style>
+                                </DataGrid.ColumnHeaderStyle>
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="N° Guía" Binding="{Binding CodigoEncomienda}" Width="95" FontWeight="SemiBold" Foreground="{StaticResource PrimaryBrush}" />
+                                    <DataGridTextColumn Header="Fecha / Hora" Binding="{Binding FechaHoraStr}" Width="130" />
+                                    <DataGridTextColumn Header="Remitente (Doc + Nombre)" Binding="{Binding RemitenteInfo}" Width="1.2*" />
+                                    <DataGridTextColumn Header="Destinatario (Doc + Nombre)" Binding="{Binding DestinatarioInfo}" Width="1.2*" />
+                                    <DataGridTextColumn Header="Modalidad" Binding="{Binding ModalidadEntrega}" Width="90" />
+                                    <DataGridTextColumn Header="Descripción" Binding="{Binding Descripcion}" Width="1.2*" />
+                                    <DataGridTextColumn Header="Peso" Binding="{Binding PesoStr}" Width="75" />
+                                    <DataGridTextColumn Header="Costo Total" Binding="{Binding CostoTotalStr}" Width="95" FontWeight="Bold" Foreground="#0E7074" />
+                                    <DataGridTextColumn Header="Método de Pago" Binding="{Binding MetodoPagoInfo}" Width="120" />
+                                </DataGrid.Columns>
+                            </DataGrid>
+
+                            <!-- Mensaje cuando está vacío -->
+                            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center"
+                                        Visibility="{Binding HayEncomiendas, Converter={StaticResource InverseBoolToVisConverter}}">
+                                <fa:IconImage Icon="BoxOpen" Width="40" Height="40" Foreground="#CBD5E0" Margin="0,0,0,10" HorizontalAlignment="Center" />
+                                <TextBlock Text="No se encontraron guías de encomienda en este turno."
+                                           FontFamily="Segoe UI" FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" HorizontalAlignment="Center" />
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+                </TabItem>
+            </TabControl>
+        </Grid>
+
+        <!-- PIE DE VENTANA: RESUMEN DE TOTALES Y BOTÓN CERRAR -->
+        <Border Grid.Row="2" Background="#FFFFFF" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="0,1,0,0" Padding="20,12">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <!-- Resumen de Totales -->
+                    <ColumnDefinition Width="*" />
+                    <!-- Botón Cerrar -->
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                    <!-- Total Boletos -->
+                    <Border Background="#F1F5F9" CornerRadius="6" Padding="12,6" Margin="0,0,10,0">
+                        <StackPanel Orientation="Horizontal">
+                            <fa:IconImage Icon="Ticket" Width="14" Height="14" Foreground="{StaticResource PrimaryBrush}" Margin="0,0,6,0" VerticalAlignment="Center" />
+                            <TextBlock Text="Total Boletos: " FontFamily="Segoe UI" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" />
+                            <TextBlock Text="{Binding TotalBoletosEmitidos}" FontFamily="Segoe UI" FontWeight="Bold" FontSize="12.5" Foreground="{StaticResource PrimaryBrush}" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Total Encomiendas -->
+                    <Border Background="#F1F5F9" CornerRadius="6" Padding="12,6" Margin="0,0,10,0">
+                        <StackPanel Orientation="Horizontal">
+                            <fa:IconImage Icon="BoxOpen" Width="14" Height="14" Foreground="{StaticResource PrimaryBrush}" Margin="0,0,6,0" VerticalAlignment="Center" />
+                            <TextBlock Text="Total Encomiendas: " FontFamily="Segoe UI" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" />
+                            <TextBlock Text="{Binding TotalEncomiendasEmitidas}" FontFamily="Segoe UI" FontWeight="Bold" FontSize="12.5" Foreground="{StaticResource PrimaryBrush}" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Total Recaudado -->
+                    <Border Background="#DEF7EC" BorderBrush="#31C48D" BorderThickness="1" CornerRadius="6" Padding="12,6">
+                        <StackPanel Orientation="Horizontal">
+                            <fa:IconImage Icon="Coins" Width="14" Height="14" Foreground="#03543F" Margin="0,0,6,0" VerticalAlignment="Center" />
+                            <TextBlock Text="Recaudación del Turno: " FontFamily="Segoe UI" FontSize="12" Foreground="#03543F" VerticalAlignment="Center" />
+                            <TextBlock Text="{Binding TotalRecaudadoTexto}" FontFamily="Segoe UI" FontWeight="Bold" FontSize="13" Foreground="#03543F" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+
+                <!-- Botón Cerrar -->
+                <Button Grid.Column="1" Click="BtnCerrar_Click" Height="36" Cursor="Hand" Padding="20,0" Background="#F8FAFC" BorderBrush="#CBD5E0" BorderThickness="1">
+                    <Button.Resources>
+                        <Style TargetType="Border">
+                            <Setter Property="CornerRadius" Value="6" />
+                        </Style>
+                    </Button.Resources>
+                    <StackPanel Orientation="Horizontal">
+                        <fa:IconImage Icon="Xmark" Width="13" Height="13" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,8,0" VerticalAlignment="Center" />
+                        <TextBlock Text="Cerrar" FontFamily="Segoe UI" FontWeight="SemiBold" FontSize="12.5" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center" />
+                    </StackPanel>
+                </Button>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

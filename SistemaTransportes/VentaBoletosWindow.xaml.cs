@@ -1041,6 +1041,7 @@ namespace SistemaTransportes
         public ICommand CerrarSesionCommand { get; }
         public ICommand RefrescarMapaCommand { get; }
         public ICommand MontoRapidoCommand { get; }
+        public ICommand AbrirHistorialVentasCommand { get; }
 
         public VentaIntegradaViewModel(Window window, UsuarioSessionModel? session = null)
         {
@@ -1073,6 +1074,7 @@ namespace SistemaTransportes
             CerrarSesionCommand = new RelayCommand(CerrarSesion);
             RefrescarMapaCommand = new RelayCommand(RefrescarMapa);
             MontoRapidoCommand = new RelayCommand<string>(AplicarMontoRapido);
+            AbrirHistorialVentasCommand = new RelayCommand(AbrirHistorialVentas);
 
             _ = InicializarDatosDesdeBdAsync();
         }
@@ -1950,6 +1952,58 @@ namespace SistemaTransportes
             Application.Current.MainWindow = login;
             login.Show();
             _window.Close();
+        }
+
+        private void AbrirHistorialVentas()
+        {
+            try
+            {
+                var historialWin = new HistorialVentasWindow(Session)
+                {
+                    Owner = _window
+                };
+                historialWin.ShowDialog();
+                _ = ActualizarSaldoCajaAsync();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error al abrir el historial de ventas: {ex.Message}", "Historial de Ventas", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private async Task ActualizarSaldoCajaAsync()
+        {
+            try
+            {
+                string connectionString = ObtenerCadenaConexion();
+                await Task.Run(() =>
+                {
+                    using var connection = new SqlConnection(connectionString);
+                    connection.Open();
+
+                    const string queryCaja = @"
+                        SELECT MontoActual 
+                        FROM dbo.CajasTurno 
+                        WHERE CajaTurnoID = @CajaTurnoID;";
+
+                    using var cmdCaja = new SqlCommand(queryCaja, connection);
+                    cmdCaja.Parameters.Add("@CajaTurnoID", SqlDbType.Int).Value = Session.CajaTurnoID;
+
+                    var result = cmdCaja.ExecuteScalar();
+                    if (result != null && result != DBNull.Value)
+                    {
+                        decimal saldo = Convert.ToDecimal(result);
+                        Application.Current.Dispatcher.Invoke(() =>
+                        {
+                            SaldoCajaActual = saldo;
+                        });
+                    }
+                });
+            }
+            catch
+            {
+                // Silencioso
+            }
         }
     }
 
