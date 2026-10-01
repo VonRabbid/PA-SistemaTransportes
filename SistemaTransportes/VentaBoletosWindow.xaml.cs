@@ -302,6 +302,10 @@ namespace SistemaTransportes
             set => SetProperty(ref _destinoSeleccionado, value);
         }
 
+        // --- RANGOS Y PROPIEDADES DE FECHA ---
+        public DateTime FechaMinima => DateTime.Today;
+        public DateTime FechaMaximaSalida => DateTime.Today.AddDays(60);
+
         private DateTime? _fechaIda = DateTime.Today;
         public DateTime? FechaIda
         {
@@ -309,24 +313,30 @@ namespace SistemaTransportes
             set
             {
                 var valor = value ?? DateTime.Today;
+                if (valor < FechaMinima) valor = FechaMinima;
+                if (valor > FechaMaximaSalida) valor = FechaMaximaSalida;
+
                 if (SetProperty(ref _fechaIda, valor))
                 {
                     OnPropertyChanged(nameof(FechaVueltaMinima));
-                    if (FechaVuelta.HasValue && FechaVuelta.Value < valor)
+                    OnPropertyChanged(nameof(FechaVueltaMaxima));
+
+                    // Si la fecha de vuelta previa queda fuera de la ventana de 30 días, se resetea
+                    if (FechaVuelta.HasValue && (FechaVuelta.Value < valor || FechaVuelta.Value > FechaVueltaMaxima))
                     {
                         FechaVuelta = null;
+                    }
+
+                    if (MostrarResultadosViajes)
+                    {
+                        BuscarViajes();
                     }
                 }
             }
         }
 
-        public DateTime FechaMinima { get; } = DateTime.Today;
-
-        public DateTime FechaVueltaMinima
-        {
-            get => FechaIda ?? DateTime.Today;
-            set { }
-        }
+        public DateTime FechaVueltaMinima => FechaIda ?? DateTime.Today;
+        public DateTime FechaVueltaMaxima => (FechaIda ?? DateTime.Today).AddDays(30);
 
         private DateTime? _fechaVuelta;
         public DateTime? FechaVuelta
@@ -334,6 +344,11 @@ namespace SistemaTransportes
             get => _fechaVuelta;
             set
             {
+                if (value.HasValue && (value.Value < FechaVueltaMinima || value.Value > FechaVueltaMaxima))
+                {
+                    return;
+                }
+
                 if (SetProperty(ref _fechaVuelta, value))
                 {
                     if (MostrarResultadosViajes)
