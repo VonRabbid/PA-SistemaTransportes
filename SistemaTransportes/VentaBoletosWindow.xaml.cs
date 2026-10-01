@@ -942,6 +942,13 @@ namespace SistemaTransportes
                 {
                     OnPropertyChanged(nameof(EsPagoEfectivo));
                     OnPropertyChanged(nameof(EsPagoDigital));
+                    OnPropertyChanged(nameof(MaxLongitudOperacion));
+
+                    if (!string.IsNullOrEmpty(_nroOperacion) && _nroOperacion.Length > MaxLongitudOperacion)
+                    {
+                        NroOperacion = _nroOperacion[..MaxLongitudOperacion];
+                    }
+
                     CalcularLiquidacion();
                 }
             }
@@ -949,6 +956,13 @@ namespace SistemaTransportes
 
         public bool EsPagoEfectivo => MetodoPagoSeleccionado == "Efectivo";
         public bool EsPagoDigital => MetodoPagoSeleccionado != "Efectivo";
+
+        public int MaxLongitudOperacion => MetodoPagoSeleccionado switch
+        {
+            "Yape / Plin" => 8,
+            "Tarjeta" => 17,
+            _ => 20
+        };
 
         private decimal? _montoRecibido = 100.00m;
         public decimal? MontoRecibido
@@ -970,8 +984,25 @@ namespace SistemaTransportes
         public decimal Vuelto => MontoRecibidoSeguro >= TotalVenta ? MontoRecibidoSeguro - TotalVenta : 0m;
         public bool FaltaDinero => EsPagoEfectivo && (MontoRecibido == null || MontoRecibido < TotalVenta);
         public decimal DiferenciaFaltante => TotalVenta - MontoRecibidoSeguro;
-        public string NroOperacion { get; set; } = "";
-        public int MaxLongitudOperacion => 12;
+
+        private string _nroOperacion = "";
+        public string NroOperacion
+        {
+            get => _nroOperacion;
+            set
+            {
+                string soloNumeros = value != null
+                    ? new string(value.Where(char.IsDigit).ToArray())
+                    : string.Empty;
+
+                if (soloNumeros.Length > MaxLongitudOperacion)
+                {
+                    soloNumeros = soloNumeros[..MaxLongitudOperacion];
+                }
+
+                SetProperty(ref _nroOperacion, soloNumeros);
+            }
+        }
 
         // Alertas
         public bool MostrarAlerta { get; set; }
