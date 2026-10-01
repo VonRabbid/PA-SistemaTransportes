@@ -4,6 +4,8 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:SistemaTransportes"
+        xmlns:mvvm="clr-namespace:SistemaTransportes.UI.MVVM"
+        xmlns:vm="clr-namespace:SistemaTransportes.UI.ViewModels"
         mc:Ignorable="d"
         Title="Sistema de Transportes - Acceso al Sistema"
         Height="720" Width="1100"
@@ -48,6 +50,7 @@
                            FontFamily="Segoe UI" FontWeight="SemiBold" FontSize="13"
                            Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,6" />
                 <TextBox x:Name="txtUsuario"
+                         Text="{Binding Username, UpdateSourceTrigger=PropertyChanged}"
                          Style="{StaticResource ModernTextBoxStyle}"
                          Margin="0,0,0,16" />
 
@@ -56,12 +59,15 @@
                            FontFamily="Segoe UI" FontWeight="SemiBold" FontSize="13"
                            Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,6" />
                 <PasswordBox x:Name="txtPassword"
+                             mvvm:PasswordBoxHelper.BindPassword="True"
+                             mvvm:PasswordBoxHelper.BoundPassword="{Binding Password, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                              Style="{StaticResource ModernPasswordBoxStyle}"
                              Margin="0,0,0,20" />
 
                 <!-- Botón Principal -->
                 <Button x:Name="btnIngresar"
-                        Click="BtnIngresar_Click"
+                        Command="{Binding IngresarCommand}"
+                        CommandParameter="{Binding ElementName=txtPassword}"
                         Style="{StaticResource PrimaryButtonStyle}"
                         Height="44" Margin="0,0,0,24">
                     <TextBlock Text="Ingresar al Sistema" VerticalAlignment="Center" />
@@ -83,7 +89,7 @@
                     </Grid.ColumnDefinitions>
 
                     <Button Grid.Column="0" x:Name="btnAccesoRapido"
-                            Click="BtnAccesoRapido_Click"
+                            Command="{Binding AccesoRapido1Command}"
                             Background="#EEF2F6" Foreground="{StaticResource PrimaryAccentBrush}"
                             FontFamily="Segoe UI" FontWeight="SemiBold" FontSize="11"
                             Padding="6,8" Cursor="Hand" BorderThickness="1" BorderBrush="{StaticResource BorderLightBrush}">
@@ -96,7 +102,7 @@
                     </Button>
 
                     <Button Grid.Column="2" x:Name="btnAccesoRapido2"
-                            Click="BtnAccesoRapido2_Click"
+                            Command="{Binding AccesoRapido2Command}"
                             Background="#F0FDF4" Foreground="#15803D"
                             FontFamily="Segoe UI" FontWeight="SemiBold" FontSize="11"
                             Padding="6,8" Cursor="Hand" BorderThickness="1" BorderBrush="#BBF7D0">

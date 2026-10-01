@@ -23,11 +23,10 @@ BEGIN TRY
             Username NVARCHAR(40) NOT NULL,
             PasswordHash NVARCHAR(256) NOT NULL,
             Rol NVARCHAR(20) NOT NULL,
-            Activo BIT NOT NULL,
+            Activo BIT NOT NULL CONSTRAINT DF_Usuarios_Activo DEFAULT (1),
             Nombres NVARCHAR(100) NULL,
             CONSTRAINT PK_Usuarios PRIMARY KEY CLUSTERED (UsuarioID),
             CONSTRAINT UQ_Usuarios_Username UNIQUE NONCLUSTERED (Username),
-            CONSTRAINT DF_Usuarios_Activo DEFAULT (1) FOR Activo,
             CONSTRAINT CHK_Usuarios_Rol CHECK (Rol IN ('Operador', 'Administrador', 'Supervisor', 'Cajero'))
         );
     END
@@ -52,12 +51,10 @@ BEGIN TRY
             UsuarioID INT NOT NULL,
             MontoApertura DECIMAL(18,2) NOT NULL,
             MontoActual DECIMAL(18,2) NOT NULL,
-            FechaApertura DATETIME NOT NULL,
-            Estado NVARCHAR(20) NOT NULL,
+            FechaApertura DATETIME NOT NULL CONSTRAINT DF_CajasTurno_FechaApertura DEFAULT (GETDATE()),
+            Estado NVARCHAR(20) NOT NULL CONSTRAINT DF_CajasTurno_Estado DEFAULT ('Abierta'),
             CONSTRAINT PK_CajasTurno PRIMARY KEY CLUSTERED (CajaTurnoID),
             CONSTRAINT FK_CajasTurno_Usuarios FOREIGN KEY (UsuarioID) REFERENCES dbo.Usuarios (UsuarioID),
-            CONSTRAINT DF_CajasTurno_FechaApertura DEFAULT (GETDATE()) FOR FechaApertura,
-            CONSTRAINT DF_CajasTurno_Estado DEFAULT ('Abierta') FOR Estado,
             CONSTRAINT CHK_CajasTurno_Estado CHECK (Estado IN ('Abierta', 'Abierto', 'Cerrada', 'Cerrado')),
             CONSTRAINT CHK_CajasTurno_Montos CHECK (MontoApertura >= 0 AND MontoActual >= 0)
         );
@@ -88,11 +85,10 @@ BEGIN TRY
             AsientoID INT IDENTITY(1,1) NOT NULL,
             BusID INT NOT NULL,
             NroAsiento INT NOT NULL,
-            Piso INT NOT NULL,
+            Piso INT NOT NULL CONSTRAINT DF_Asientos_Piso DEFAULT (1),
             CONSTRAINT PK_Asientos PRIMARY KEY CLUSTERED (AsientoID),
             CONSTRAINT FK_Asientos_Buses FOREIGN KEY (BusID) REFERENCES dbo.Buses (BusID),
             CONSTRAINT UQ_Asientos_Bus_Nro UNIQUE NONCLUSTERED (BusID, NroAsiento),
-            CONSTRAINT DF_Asientos_Piso DEFAULT (1) FOR Piso,
             CONSTRAINT CHK_Asientos_NroAsiento CHECK (NroAsiento >= 1 AND NroAsiento <= 100),
             CONSTRAINT CHK_Asientos_Piso CHECK (Piso IN (1, 2))
         );
@@ -111,16 +107,14 @@ BEGIN TRY
             BusID INT NOT NULL,
             Origen NVARCHAR(50) NOT NULL,
             Destino NVARCHAR(50) NOT NULL,
-            TipoServicio NVARCHAR(50) NOT NULL,
+            TipoServicio NVARCHAR(50) NOT NULL CONSTRAINT DF_Viajes_TipoServicio DEFAULT ('Directo'),
             FechaSalida DATETIME NOT NULL,
             FechaHoraLlegada DATETIME NULL,
-            Categoria NVARCHAR(50) NOT NULL,
+            Categoria NVARCHAR(50) NOT NULL CONSTRAINT DF_Viajes_Categoria DEFAULT (N'Clásico'),
             DuracionEstimada NVARCHAR(30) NULL,
             PrecioBase DECIMAL(18,2) NOT NULL,
             CONSTRAINT PK_Viajes PRIMARY KEY CLUSTERED (ViajeID),
             CONSTRAINT FK_Viajes_Buses FOREIGN KEY (BusID) REFERENCES dbo.Buses (BusID),
-            CONSTRAINT DF_Viajes_TipoServicio DEFAULT ('Directo') FOR TipoServicio,
-            CONSTRAINT DF_Viajes_Categoria DEFAULT (N'Clásico') FOR Categoria,
             CONSTRAINT CHK_Viajes_PrecioBase CHECK (PrecioBase >= 0)
         );
     END;
@@ -144,12 +138,11 @@ BEGIN TRY
             EstadoAsientoID INT IDENTITY(1,1) NOT NULL,
             ViajeID INT NOT NULL,
             NroAsiento INT NOT NULL,
-            Estado NVARCHAR(20) NOT NULL,
+            Estado NVARCHAR(20) NOT NULL CONSTRAINT DF_EstadoAsientosViaje_Estado DEFAULT ('Libre'),
             RowVersion ROWVERSION NOT NULL,
             CONSTRAINT PK_EstadoAsientosViaje PRIMARY KEY CLUSTERED (EstadoAsientoID),
             CONSTRAINT FK_EstadoAsientosViaje_Viajes FOREIGN KEY (ViajeID) REFERENCES dbo.Viajes (ViajeID),
             CONSTRAINT UQ_EstadoAsientosViaje_Viaje_Nro UNIQUE NONCLUSTERED (ViajeID, NroAsiento),
-            CONSTRAINT DF_EstadoAsientosViaje_Estado DEFAULT ('Libre') FOR Estado,
             CONSTRAINT CHK_EstadoAsientosViaje_Estado CHECK (Estado IN ('Libre', 'Reservado', 'Ocupado'))
         );
     END;
@@ -171,14 +164,13 @@ BEGIN TRY
             DniPasajero NVARCHAR(8) NOT NULL,
             NombrePasajero NVARCHAR(100) NOT NULL,
             PrecioFinal DECIMAL(18,2) NOT NULL,
-            FechaEmision DATETIME NOT NULL,
+            FechaEmision DATETIME NOT NULL CONSTRAINT DF_Boletos_FechaEmision DEFAULT (GETDATE()),
             CajaTurnoID INT NOT NULL,
             MetodoPago VARCHAR(30) NULL,
             NumeroOperacion VARCHAR(50) NULL,
             CONSTRAINT PK_Boletos PRIMARY KEY CLUSTERED (BoletoID),
             CONSTRAINT FK_Boletos_Viajes FOREIGN KEY (ViajeID) REFERENCES dbo.Viajes (ViajeID),
             CONSTRAINT FK_Boletos_CajasTurno FOREIGN KEY (CajaTurnoID) REFERENCES dbo.CajasTurno (CajaTurnoID),
-            CONSTRAINT DF_Boletos_FechaEmision DEFAULT (GETDATE()) FOR FechaEmision,
             CONSTRAINT CHK_Boletos_PrecioFinal CHECK (PrecioFinal >= 0),
             CONSTRAINT CHK_Boletos_DniPasajero CHECK (LEN(DniPasajero) = 8)
         );
@@ -215,17 +207,17 @@ BEGIN TRY
             Descripcion NVARCHAR(150) NOT NULL,
             PesoKg DECIMAL(10,2) NOT NULL,
             CostoCarga DECIMAL(18,2) NOT NULL,
-            FechaRecepcion DATETIME NOT NULL,
+            FechaRecepcion DATETIME NOT NULL CONSTRAINT DF_Encomiendas_FechaRecepcion DEFAULT (GETDATE()),
             RemitenteTipoDoc VARCHAR(10) NULL,
             RemitenteDoc VARCHAR(15) NULL,
-            RemitenteNombre VARCHAR(120) NULL,
+            RemitenteNombre NVARCHAR(120) NULL,
             RemitenteTelefono VARCHAR(15) NULL,
             DestinatarioTipoDoc VARCHAR(10) NULL,
             DestinatarioDoc VARCHAR(15) NULL,
-            DestinatarioNombre VARCHAR(120) NULL,
+            DestinatarioNombre NVARCHAR(120) NULL,
             DestinatarioTelefono VARCHAR(15) NULL,
-            ModalidadEntrega VARCHAR(30) NULL,
-            DireccionEntrega VARCHAR(200) NULL,
+            ModalidadEntrega VARCHAR(30) NULL CONSTRAINT DF_Encomiendas_ModalidadEntrega DEFAULT ('Agencia'),
+            DireccionEntrega NVARCHAR(200) NULL,
             RecargoDelivery DECIMAL(10,2) NULL,
             MetodoPago VARCHAR(30) NULL,
             NumeroOperacion VARCHAR(50) NULL,
@@ -233,8 +225,6 @@ BEGIN TRY
             CONSTRAINT FK_Encomiendas_Boletos FOREIGN KEY (BoletoID) REFERENCES dbo.Boletos (BoletoID),
             CONSTRAINT FK_Encomiendas_Viajes FOREIGN KEY (ViajeID) REFERENCES dbo.Viajes (ViajeID),
             CONSTRAINT FK_Encomiendas_CajasTurno FOREIGN KEY (CajaTurnoID) REFERENCES dbo.CajasTurno (CajaTurnoID),
-            CONSTRAINT DF_Encomiendas_FechaRecepcion DEFAULT (GETDATE()) FOR FechaRecepcion,
-            CONSTRAINT DF_Encomiendas_ModalidadEntrega DEFAULT ('Agencia') FOR ModalidadEntrega,
             CONSTRAINT CHK_Encomiendas_PesoKg CHECK (PesoKg > 0),
             CONSTRAINT CHK_Encomiendas_CostoCarga CHECK (CostoCarga >= 0),
             CONSTRAINT CHK_Encomiendas_ModalidadEntrega CHECK (ModalidadEntrega IS NULL OR ModalidadEntrega IN ('Agencia', 'Domicilio'))

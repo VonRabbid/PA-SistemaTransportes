@@ -1,3 +1,6 @@
 <Solution>
-  <Project Path="SistemaTransportes/SistemaTransportes.csproj" />
+  <Project Path="SistemaTransportes.Application/SistemaTransportes.Application.csproj" />
+  <Project Path="SistemaTransportes.Domain/SistemaTransportes.Domain.csproj" />
+  <Project Path="SistemaTransportes.Infrastructure/SistemaTransportes.Infrastructure.csproj" />
+  <Project Path="SistemaTransportes.UI/SistemaTransportes.UI.csproj" />
 </Solution>

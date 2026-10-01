@@ -3,6 +3,8 @@
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net10.0-windows</TargetFramework>
+    <RootNamespace>SistemaTransportes</RootNamespace>
+    <AssemblyName>SistemaTransportes</AssemblyName>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
@@ -11,6 +13,7 @@
   <ItemGroup>
     <PackageReference Include="FontAwesome.Sharp" Version="6.6.0" />
     <PackageReference Include="Microsoft.Data.SqlClient" Version="7.1.0" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.12" />
   </ItemGroup>
 
   <ItemGroup>
@@ -18,6 +21,12 @@
     <None Update="imagenes\*.png">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\SistemaTransportes.Domain\SistemaTransportes.Domain.csproj" />
+    <ProjectReference Include="..\SistemaTransportes.Application\SistemaTransportes.Application.csproj" />
+    <ProjectReference Include="..\SistemaTransportes.Infrastructure\SistemaTransportes.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

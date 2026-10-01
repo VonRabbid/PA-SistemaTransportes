@@ -53,15 +53,21 @@ BEGIN TRY
         ALTER TABLE dbo.Encomiendas ADD 
             RemitenteTipoDoc VARCHAR(10) NULL,
             RemitenteDoc VARCHAR(15) NULL,
-            RemitenteNombre VARCHAR(120) NULL,
+            RemitenteNombre NVARCHAR(120) NULL,
             RemitenteTelefono VARCHAR(15) NULL,
             DestinatarioTipoDoc VARCHAR(10) NULL,
             DestinatarioDoc VARCHAR(15) NULL,
-            DestinatarioNombre VARCHAR(120) NULL,
+            DestinatarioNombre NVARCHAR(120) NULL,
             DestinatarioTelefono VARCHAR(15) NULL,
             ModalidadEntrega VARCHAR(30) NULL,
-            DireccionEntrega VARCHAR(200) NULL,
+            DireccionEntrega NVARCHAR(200) NULL,
             RecargoDelivery DECIMAL(10,2) NULL;
+    END
+    ELSE
+    BEGIN
+        ALTER TABLE dbo.Encomiendas ALTER COLUMN RemitenteNombre NVARCHAR(120) NULL;
+        ALTER TABLE dbo.Encomiendas ALTER COLUMN DestinatarioNombre NVARCHAR(120) NULL;
+        ALTER TABLE dbo.Encomiendas ALTER COLUMN DireccionEntrega NVARCHAR(200) NULL;
     END;
 
     -- 4. Restricciones por defecto y validaciones de datos (modalidad de entrega, peso y costo)
