@@ -39,6 +39,12 @@ namespace SistemaTransportes
             txtPassword.Password = "1598753";
         }
 
+        private void BtnAccesoRapido2_Click(object sender, RoutedEventArgs e)
+        {
+            txtUsuario.Text = "OpVenta2";
+            txtPassword.Password = "1598753";
+        }
+
         private async void BtnIngresar_Click(object sender, RoutedEventArgs e)
         {
             string username = txtUsuario.Text.Trim();

@@ -70,26 +70,47 @@
                 <!-- Separador -->
                 <Separator Background="{StaticResource BorderLightBrush}" Margin="0,0,0,16" />
 
-                <!-- Acceso Rápido Operador Único -->
-                <TextBlock Text="Acceso Rápido - Operador Único:"
+                <!-- Acceso Rápido Selección de Operador -->
+                <TextBlock Text="Acceso Rápido - Selección de Ventanilla:"
                            FontFamily="Segoe UI" FontSize="11.5" FontWeight="SemiBold"
                            Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,8" />
 
-                <Button x:Name="btnAccesoRapido"
-                        Click="BtnAccesoRapido_Click"
-                        Background="#EEF2F6" Foreground="{StaticResource PrimaryAccentBrush}"
-                        FontFamily="Segoe UI" FontWeight="SemiBold" FontSize="12"
-                        Padding="12,8" Margin="0,0,0,10" Cursor="Hand" BorderThickness="1" BorderBrush="{StaticResource BorderLightBrush}">
-                    <Button.Resources>
-                        <Style TargetType="Border">
-                            <Setter Property="CornerRadius" Value="6" />
-                        </Style>
-                    </Button.Resources>
-                    <TextBlock Text="👤 OpControl (Operador de Control)" VerticalAlignment="Center" FontWeight="SemiBold" HorizontalAlignment="Center" />
-                </Button>
+                <Grid Margin="0,0,0,10">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="10" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+
+                    <Button Grid.Column="0" x:Name="btnAccesoRapido"
+                            Click="BtnAccesoRapido_Click"
+                            Background="#EEF2F6" Foreground="{StaticResource PrimaryAccentBrush}"
+                            FontFamily="Segoe UI" FontWeight="SemiBold" FontSize="11"
+                            Padding="6,8" Cursor="Hand" BorderThickness="1" BorderBrush="{StaticResource BorderLightBrush}">
+                        <Button.Resources>
+                            <Style TargetType="Border">
+                                <Setter Property="CornerRadius" Value="6" />
+                            </Style>
+                        </Button.Resources>
+                        <TextBlock Text="👤 OpControl (Ventanilla 1)" VerticalAlignment="Center" FontWeight="SemiBold" HorizontalAlignment="Center" />
+                    </Button>
+
+                    <Button Grid.Column="2" x:Name="btnAccesoRapido2"
+                            Click="BtnAccesoRapido2_Click"
+                            Background="#F0FDF4" Foreground="#15803D"
+                            FontFamily="Segoe UI" FontWeight="SemiBold" FontSize="11"
+                            Padding="6,8" Cursor="Hand" BorderThickness="1" BorderBrush="#BBF7D0">
+                        <Button.Resources>
+                            <Style TargetType="Border">
+                                <Setter Property="CornerRadius" Value="6" />
+                            </Style>
+                        </Button.Resources>
+                        <TextBlock Text="👤 OpVenta2 (Ventanilla 2)" VerticalAlignment="Center" FontWeight="SemiBold" HorizontalAlignment="Center" />
+                    </Button>
+                </Grid>
 
                 <!-- Leyenda Inferior en Cursiva -->
-                <TextBlock Text="Credenciales de acceso: OpControl / 1598753"
+                <TextBlock Text="Contraseña unificada: 1598753 (Ventanilla 1 y Ventanilla 2)"
                            FontFamily="Segoe UI" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"
                            HorizontalAlignment="Center" FontStyle="Italic" />
             </StackPanel>

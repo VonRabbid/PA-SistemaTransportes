@@ -1328,8 +1328,6 @@ namespace SistemaTransportes
             FechaVuelta = null;
             ViajesDisponibles.Clear();
             ViajeSeleccionado = null;
-            MostrarResultadosViajes = false;
-            MostrarMapaAsientos = false;
             AsientosSeleccionados.Clear();
             _todosLosAsientos.Clear();
             FilasAsientosVisibles.Clear();
@@ -1735,7 +1733,7 @@ namespace SistemaTransportes
                             const string sqlActualizarAsiento = @"
                                 UPDATE dbo.EstadoAsientosViaje 
                                 SET Estado = 'Ocupado' 
-                                WHERE ViajeID = @ViajeID AND NroAsiento = @NroAsiento;";
+                                WHERE ViajeID = @ViajeID AND NroAsiento = @NroAsiento AND Estado = 'Libre';";
 
                             const string sqlInsertBoleto = @"
                                 INSERT INTO dbo.Boletos (
@@ -1754,7 +1752,11 @@ namespace SistemaTransportes
                                 {
                                     cmdAsiento.Parameters.Add("@ViajeID", SqlDbType.Int).Value = viajeId;
                                     cmdAsiento.Parameters.Add("@NroAsiento", SqlDbType.Int).Value = pas.NroAsiento;
-                                    cmdAsiento.ExecuteNonQuery();
+                                    int filasModificadas = cmdAsiento.ExecuteNonQuery();
+                                    if (filasModificadas == 0)
+                                    {
+                                        throw new InvalidOperationException($"El Asiento #{pas.NroAsiento} ya no está disponible. Fue adquirido simultáneamente por otro operador en el sistema.");
+                                    }
                                 }
 
                                 using (var cmdBoleto = new SqlCommand(sqlInsertBoleto, connection, transaction))
@@ -1888,10 +1890,22 @@ namespace SistemaTransportes
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error al procesar la venta en la base de datos:\n{ex.Message}",
-                                "Error de Transacción",
-                                MessageBoxButton.OK,
-                                MessageBoxImage.Error);
+                // En caso de conflicto de concurrencia o rollback, refrescamos el croquis de asientos en tiempo real
+                if (ViajeSeleccionado != null)
+                {
+                    ConsultarAsientosDesdeBd(ViajeSeleccionado.ViajeID);
+                }
+
+                MessageBox.Show(
+                    $"TRANSACCIÓN ABORTADA - ROLLBACK EJECUTADO:\n\n{ex.Message}\n\n" +
+                    "Garantía ACID (Atomicidad):\n" +
+                    "• La transacción en SQL Server se revirtió íntegramente (Rollback).\n" +
+                    "• No se emitieron boletos ni se registraron encomiendas.\n" +
+                    "• La caja del turno permaneció intacta sin descuadre de dinero.\n" +
+                    "• El estado de los asientos se ha sincronizado en tiempo real.",
+                    "Rollback de Seguridad - Transacción ACID",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
             }
         }
 
