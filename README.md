@@ -170,27 +170,9 @@ Solución "Proyecto" (4 proyectos .NET 10)
 
 
 
-2\. \*\*Configuración de Cadena de Conexión:\*\*
-
-&#x20;  Ajustar el archivo `SistemaTransportes.UI/App.config` con la cadena correspondiente a tu entorno:
-
-&#x20;  ```xml
-
-&#x20;  <connectionStrings>
-
-&#x20;    <add name="BD\_Transportes"
-
-&#x20;         connectionString="Server=.;Database=BD\_Transportes;Integrated Security=True;Encrypt=True;TrustServerCertificate=True;"
-
-&#x20;         providerName="Microsoft.Data.SqlClient" />
-
-&#x20;  </connectionStrings>
-
-&#x20;  ```
 
 
-
-3\. \*\*Compilación y Ejecución por Consola:\*\*
+2\. \*\*Compilación y Ejecución por Consola:\*\*
 
 &#x20;  ```bash
 
@@ -210,3 +192,9 @@ Solución "Proyecto" (4 proyectos .NET 10)
 
 \* \*\*Ventanilla 2 (Concurrencia):\*\* Operador: `OpVenta2` | Clave: `1598753`
 
+
+
+### Credenciales de Prueba (Accesos Rápidos)
+
+* **Nombre del Servidor:** `sistema-transportes-2026.database.windows.net`
+* **Nombre de usuario:** `admin_st` | **Clave:** `1425PA31%`
